@@ -1,0 +1,16 @@
+**/.cache
+.direnv
+.envrc
+.vscode/
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+build/
+compile_commands.json
+protocols/*.cpp
+protocols/*.hpp
+*.kdev4
+.gdb_history
+*.log
+VERSION
