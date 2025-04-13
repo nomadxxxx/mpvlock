@@ -99,7 +99,7 @@ pkg_check_modules(
   sdbus-c++>=2.0.0
   hyprgraphics)
 
-file(GLOB_RECURSIVE SRCFILES CONFIGURE_DEPENDS "src/*.cpp")
+file(GLOB_RECURSE SRCFILES CONFIGURE_DEPENDS "src/*.cpp")
 add_executable(mpvlock ${SRCFILES})
 target_link_libraries(mpvlock PRIVATE pam rt Threads::Threads PkgConfig::deps
                                      OpenGL::EGL OpenGL::GLES3)
