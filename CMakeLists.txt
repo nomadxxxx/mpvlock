@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 
-file(READ "${CMAKE_SOURCE_DIR}/VERSION" VER_RAW)
-string(STRIP ${VER_RAW} VERSION)
+# Set default version if not provided
+set(VERSION "0.7.0" CACHE STRING "Project version")
 
 project(
   mpvlock
@@ -38,8 +38,13 @@ else()
     OUTPUT_STRIP_TRAILING_WHITESPACE
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND git rev-parse --short HEAD
+    RESULT_VARIABLE GIT_RESULT
   )
-  add_compile_definitions(MPVLOCK_COMMIT="${GIT_SHORT_HASH}")
+  if(GIT_RESULT EQUAL 0)
+    add_compile_definitions(MPVLOCK_COMMIT="${GIT_SHORT_HASH}")
+  else()
+    add_compile_definitions(MPVLOCK_COMMIT="unknown")
+  endif()
 endif()
 
 if (DEFINED MPVLOCK_VERSION_COMMIT)
@@ -50,8 +55,14 @@ else()
     OUTPUT_STRIP_TRAILING_WHITESPACE
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND git rev-parse --short v${VERSION}
+    RESULT_VARIABLE GIT_TAG_RESULT
   )
-  add_compile_definitions(MPVLOCK_VERSION_COMMIT="${GIT_TAG_SHORT_HASH}")
+  if(GIT_TAG_RESULT EQUAL 0)
+    add_compile_definitions(MPVLOCK_VERSION_COMMIT="${GIT_TAG_SHORT_HASH}")
+  else()
+    add_compile_definitions(MPVLOCK_VERSION_COMMIT="unknown")
+    message(WARNING "No git tag v${VERSION} found, using fallback MPVLOCK_VERSION_COMMIT=unknown")
+  endif()
 endif()
 
 message(STATUS "VERSION COMMIT: ${MPVLOCK_VERSION_COMMIT}")
