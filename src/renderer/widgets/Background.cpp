@@ -422,7 +422,9 @@ void CBackground::renderRect(CHyprColor color) {
 
 bool CBackground::draw(const SRenderData& data) {
     if (m_bIsVideoBackground) {
-        Debug::log(LOG, "Skipping static background rendering; using video background via mpvpaper");
+        static int skipBackgroundCount = 0;
+        if (skipBackgroundCount++ % 100 == 0)
+            Debug::log(TRACE, "Skipping static background rendering; using video background via mpvpaper");
         return false;
     }
 

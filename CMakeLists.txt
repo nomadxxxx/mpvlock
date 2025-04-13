@@ -4,19 +4,19 @@ file(READ "${CMAKE_SOURCE_DIR}/VERSION" VER_RAW)
 string(STRIP ${VER_RAW} VERSION)
 
 project(
-  hyprlock
-  DESCRIPTION "A gpu-accelerated screen lock for Hyprland"
+  mpvlock
+  DESCRIPTION "A screen locking utility based on hyprlock that supports video and audio"
   VERSION ${VERSION})
 
 set(CMAKE_MESSAGE_LOG_LEVEL "STATUS")
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
 if(CMAKE_BUILD_TYPE MATCHES Debug OR CMAKE_BUILD_TYPE MATCHES DEBUG)
-  message(STATUS "Configuring hyprlock in Debug with CMake")
+  message(STATUS "Configuring mpvlock in Debug with CMake")
   add_compile_definitions(HYPRLAND_DEBUG)
 else()
   add_compile_options(-O3)
-  message(STATUS "Configuring hyprlock in Release with CMake")
+  message(STATUS "Configuring mpvlock in Release with CMake")
 endif()
 
 include_directories(. "protocols/")
@@ -28,36 +28,34 @@ set(CMAKE_CXX_STANDARD 23)
 add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-value
                     -Wno-missing-field-initializers -Wno-narrowing)
 
-add_compile_definitions(HYPRLOCK_VERSION="${VERSION}")
+add_compile_definitions(MPVLOCK_VERSION="${VERSION}")
 
-if (DEFINED HYPRLOCK_COMMIT)
-  add_compile_definitions(HYPRLOCK_COMMIT="${HYPRLOCK_COMMIT}")
+if (DEFINED MPVLOCK_COMMIT)
+  add_compile_definitions(MPVLOCK_COMMIT="${MPVLOCK_COMMIT}")
 else()
-   # get git commit
   execute_process(
     OUTPUT_VARIABLE GIT_SHORT_HASH
     OUTPUT_STRIP_TRAILING_WHITESPACE
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND git rev-parse --short HEAD
   )
-  add_compile_definitions(HYPRLOCK_COMMIT="${GIT_SHORT_HASH}")
+  add_compile_definitions(MPVLOCK_COMMIT="${GIT_SHORT_HASH}")
 endif()
 
-if (DEFINED HYPRLOCK_VERSION_COMMIT)
-  add_compile_definitions(HYPRLOCK_VERSION_COMMIT="${HYPRLOCK_VERSION_COMMIT}")
+if (DEFINED MPVLOCK_VERSION_COMMIT)
+  add_compile_definitions(MPVLOCK_VERSION_COMMIT="${MPVLOCK_VERSION_COMMIT}")
 else()
-  # get git commit of v$VERSION
   execute_process(
     OUTPUT_VARIABLE GIT_TAG_SHORT_HASH
     OUTPUT_STRIP_TRAILING_WHITESPACE
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND git rev-parse --short v${VERSION}
   )
-  add_compile_definitions(HYPRLOCK_VERSION_COMMIT="${GIT_TAG_SHORT_HASH}")
+  add_compile_definitions(MPVLOCK_VERSION_COMMIT="${GIT_TAG_SHORT_HASH}")
 endif()
 
-message(STATUS "VERSION COMMIT: ${HYPRLOCK_VERSION_COMMIT}")
-message(STATUS "COMMIT: ${HYPRLOCK_COMMIT}")
+message(STATUS "VERSION COMMIT: ${MPVLOCK_VERSION_COMMIT}")
+message(STATUS "COMMIT: ${MPVLOCK_COMMIT}")
 
 # position independent build: __FILE__
 add_compile_options(-fmacro-prefix-map=${CMAKE_SOURCE_DIR}/=)
@@ -91,16 +89,15 @@ pkg_check_modules(
   hyprgraphics)
 
 file(GLOB_RECURSE SRCFILES CONFIGURE_DEPENDS "src/*.cpp")
-add_executable(hyprlock ${SRCFILES})
-target_link_libraries(hyprlock PRIVATE pam rt Threads::Threads PkgConfig::deps
-                                       OpenGL::EGL OpenGL::GLES3)
+add_executable(mpvlock ${SRCFILES})
+target_link_libraries(mpvlock PRIVATE pam rt Threads::Threads PkgConfig::deps
+                                     OpenGL::EGL OpenGL::GLES3)
 
 # protocols
 pkg_get_variable(WAYLAND_PROTOCOLS_DIR wayland-protocols pkgdatadir)
 message(STATUS "Found wayland-protocols at ${WAYLAND_PROTOCOLS_DIR}")
 pkg_get_variable(WAYLAND_SCANNER_PKGDATA_DIR wayland-scanner pkgdatadir)
-message(
-  STATUS "Found wayland-scanner pkgdatadir at ${WAYLAND_SCANNER_PKGDATA_DIR}")
+message(STATUS "Found wayland-scanner pkgdatadir at ${WAYLAND_SCANNER_PKGDATA_DIR}")
 
 function(protocolnew protoPath protoName external)
   if(external)
@@ -114,8 +111,8 @@ function(protocolnew protoPath protoName external)
     COMMAND hyprwayland-scanner --client ${path}/${protoName}.xml
             ${CMAKE_SOURCE_DIR}/protocols/
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
-  target_sources(hyprlock PRIVATE protocols/${protoName}.cpp
-                                   protocols/${protoName}.hpp)
+  target_sources(mpvlock PRIVATE protocols/${protoName}.cpp
+                                protocols/${protoName}.hpp)
 endfunction()
 function(protocolWayland)
   add_custom_command(
@@ -124,15 +121,14 @@ function(protocolWayland)
     COMMAND hyprwayland-scanner --wayland-enums --client
             ${WAYLAND_SCANNER_PKGDATA_DIR}/wayland.xml ${CMAKE_SOURCE_DIR}/protocols/
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
-  target_sources(hyprlock PRIVATE protocols/wayland.cpp protocols/wayland.hpp)
+  target_sources(mpvlock PRIVATE protocols/wayland.cpp protocols/wayland.hpp)
 endfunction()
 
-make_directory(${CMAKE_SOURCE_DIR}/protocols) # we don't ship any custom ones so
-                                              # the dir won't be there
+make_directory(${CMAKE_SOURCE_DIR}/protocols)
 
 protocolwayland()
 
-protocolnew("stable/xdg-shell" "xdg-shell" false) # Added for xdg-shell
+protocolnew("stable/xdg-shell" "xdg-shell" false)
 protocolnew("protocols" "wlr-screencopy-unstable-v1" true)
 protocolnew("staging/ext-session-lock" "ext-session-lock-v1" false)
 protocolnew("stable/linux-dmabuf" "linux-dmabuf-v1" false)
@@ -143,12 +139,12 @@ protocolnew("stable/tablet" "tablet-v2" false)
 protocolnew("protocols" "wlr-layer-shell-unstable-v1" true)
 
 # Installation
-install(TARGETS hyprlock)
+install(TARGETS mpvlock)
 
-install(FILES ${CMAKE_SOURCE_DIR}/pam/hyprlock
+install(FILES ${CMAKE_SOURCE_DIR}/pam/mpvlock
         DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR}/pam.d)
 
 install(
   FILES ${CMAKE_SOURCE_DIR}/assets/example.conf
-  DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/hypr
-  RENAME hyprlock.conf)
+  DESTINATION ${CMAKE_INSTALL_FULL_DATAROOTDIR}/mpvlock
+  RENAME mpvlock.conf)

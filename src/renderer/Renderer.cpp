@@ -241,17 +241,14 @@ void CRenderer::renderBackground(const CSessionLockSurface& surf, float opacity)
             }
         }
         if (hasVideoBackground) {
-            static bool logged = false;
-            if (!logged) {
-                Debug::log(LOG, "Skipping static background rendering; using video background via mpvpaper");
-                logged = true;
-            }
+            static int skipRendererCount = 0;
+            if (skipRendererCount++ % 100 == 0)
+                Debug::log(TRACE, "Skipping static background rendering; using video background via mpvpaper");
         }
     } catch (const std::exception& e) {
         Debug::log(ERR, "renderBackground failed for output {}: {}", surf.m_outputRef.lock()->stringPort, e.what());
     }
 }
-
 void CRenderer::renderShapes(const CSessionLockSurface& surf, float opacity) {
     try {
         auto widgets = getOrCreateWidgetsFor(surf);
@@ -472,7 +469,6 @@ void CRenderer::renderTextureMix(const CBox& box, const CTexture& tex, const CTe
         Debug::log(ERR, "renderTextureMix failed: {}", e.what());
     }
 }
-
 template <class Widget>
 static void createWidget(std::vector<SP<IWidget>>& widgets) {
     const auto W = makeShared<Widget>();
@@ -801,4 +797,4 @@ void CRenderer::stopMpvpaper(const std::string& monitor) {
     } catch (const std::exception& e) {
         Debug::log(ERR, "stopMpvpaper for monitor {} failed: {}", monitor, e.what());
     }
-}
+}'
