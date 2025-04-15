@@ -13,4 +13,4 @@ protocols/*.hpp
 *.kdev4
 .gdb_history
 *.log
-VERSION
+
