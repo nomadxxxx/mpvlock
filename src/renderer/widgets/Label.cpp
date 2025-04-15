@@ -47,11 +47,11 @@ void CLabel::onTimer(std::shared_ptr<CTimer> timer, void* data) {
                 PLABEL->fade.fadeTimer->cancel();
                 PLABEL->fade.fadeTimer.reset();
                 PLABEL->fade.fadingIn = !PLABEL->fade.fadingIn; // Toggle direction for next fade
-                Debug::log(TRACE, "CLabel fading complete: opacity={}", PLABEL->fade.opacity);
+                // Debug::log(TRACE, "CLabel fading complete: opacity={}", PLABEL->fade.opacity);
             } else {
                 // Update opacity
                 PLABEL->fade.opacity = PLABEL->fade.fadingIn ? progress : 1.0f - progress;
-                Debug::log(TRACE, "CLabel fading: progress={}, opacity={}", progress, PLABEL->fade.opacity);
+                // Debug::log(TRACE, "CLabel fading: progress={}, opacity={}", progress, PLABEL->fade.opacity);
             }
 
             // Trigger a render to reflect the new opacity
@@ -117,7 +117,7 @@ void CLabel::startFade() {
     fade.fadeTimer = g_pMpvlock->addTimer(std::chrono::milliseconds(16), // ~60 FPS
                                           [REF = m_self](std::shared_ptr<CTimer> timer, void*) { REF.lock()->onTimer(timer, (void*)&REF); },
                                           nullptr, false);
-    Debug::log(LOG, "CLabel starting fade: fadingIn={}, duration={}ms", fade.fadingIn, fade.durationMs);
+    // Debug::log(LOG, "CLabel starting fade: fadingIn={}, duration={}ms", fade.fadingIn, fade.durationMs);
 }
 
 void CLabel::configure(const std::unordered_map<std::string, std::any>& props, const SP<COutput>& pOutput) {
@@ -129,27 +129,27 @@ void CLabel::configure(const std::unordered_map<std::string, std::any>& props, c
     shadow.configure(m_self.lock(), props, viewport);
 
     try {
-        Debug::log(LOG, "Label configure: {} props received", props.size());
-        for (const auto& [key, val] : props) {
-            Debug::log(LOG, "Label prop: {} (type: {})", key, val.type().name());
-        }
+        // Debug::log(LOG, "Label configure: {} props received", props.size());
+        // for (const auto& [key, val] : props) {
+        //     Debug::log(LOG, "Label prop: {} (type: {})", key, val.type().name());
+        // }
 
         configPos      = CLayoutValueData::fromAnyPv(props.at("position"))->getAbsolute(viewport);
-        Debug::log(LOG, "Parsed label position: {}x{}", configPos.x, configPos.y);
+        // Debug::log(LOG, "Parsed label position: {}x{}", configPos.x, configPos.y);
         labelPreFormat = std::any_cast<Hyprlang::STRING>(props.at("text"));
         halign         = std::any_cast<Hyprlang::STRING>(props.at("halign"));
         valign         = std::any_cast<Hyprlang::STRING>(props.at("valign"));
         angle          = std::any_cast<Hyprlang::FLOAT>(props.at("rotate"));
         angle          = angle * M_PI / 180.0;
-        Debug::log(LOG, "Parsed rotate: {} radians", angle);
+        // Debug::log(LOG, "Parsed rotate: {} radians", angle);
 
         textOrientation = "horizontal";
         if (props.contains("text_orientation")) {
-            Debug::log(LOG, "text_orientation found in props");
+            // Debug::log(LOG, "text_orientation found in props");
             auto val = props.at("text_orientation");
             if (val.type() == typeid(Hyprlang::STRING)) {
                 textOrientation = std::any_cast<Hyprlang::STRING>(val);
-                Debug::log(LOG, "Parsed text_orientation: {}", textOrientation);
+                // Debug::log(LOG, "Parsed text_orientation: {}", textOrientation);
             } else {
                 Debug::log(WARN, "text_orientation has unexpected type: {}, defaulting to horizontal", val.type().name());
             }
@@ -165,7 +165,7 @@ void CLabel::configure(const std::unordered_map<std::string, std::any>& props, c
         if (props.contains("zindex")) {
             try {
                 m_iZindex = std::any_cast<Hyprlang::INT>(props.at("zindex"));
-                Debug::log(LOG, "Label configured with zindex: {}", m_iZindex);
+                // Debug::log(LOG, "Label configured with zindex: {}", m_iZindex);
             } catch (const std::exception& e) {
                 Debug::log(WARN, "Failed to parse zindex for label: {}, defaulting to 20", e.what());
                 m_iZindex = 20;
@@ -221,7 +221,7 @@ void CLabel::configure(const std::unordered_map<std::string, std::any>& props, c
             PangoAttribute* gravityAttr = pango_attr_gravity_new(PANGO_GRAVITY_EAST);
             pango_attr_list_insert(attrList, gravityAttr);
             request.props["pango_attributes"] = attrList;
-            Debug::log(TRACE, "Set PangoGravity::East for vertical text");
+            // Debug::log(TRACE, "Set PangoGravity::East for vertical text");
         }
 
         if (!textAlign.empty())
@@ -291,7 +291,7 @@ bool CLabel::draw(const SRenderData& data) {
         return true;
     }
 
-    Debug::log(TRACE, "Original texture size: {}x{}", size.x, size.y);
+    // Debug::log(TRACE, "Original texture size: {}x{}", size.x, size.y);
     pos = posFromHVAlign(viewport, size, configPos, halign, valign, angle);
 
     double finalAngle = angle;
@@ -299,8 +299,8 @@ bool CLabel::draw(const SRenderData& data) {
     if (textOrientation == "vertical") {
         finalAngle += M_PI / 2.0; // Keep rotation for texture alignment
         adjustedPos = posFromHVAlign(viewport, size, configPos, halign, valign, finalAngle);
-        Debug::log(TRACE, "Vertical orientation: angle={} radians, size={}x{}, pos={}x{}", 
-                   finalAngle, size.x, size.y, adjustedPos.x, adjustedPos.y);
+        // Debug::log(TRACE, "Vertical orientation: angle={} radians, size={}x{}, pos={}x{}", 
+        //            finalAngle, size.x, size.y, adjustedPos.x, adjustedPos.y);
     }
 
     CBox box = {adjustedPos.x, adjustedPos.y, size.x, size.y};
@@ -309,8 +309,8 @@ bool CLabel::draw(const SRenderData& data) {
     float adjustedOpacity = data.opacity * fade.opacity;
     g_pRenderer->renderTexture(box, asset->texture, adjustedOpacity);
 
-    Debug::log(TRACE, "Drawing label at {}x{} with size: {}x{}, text: {}, orientation: {}", 
-               box.x, box.y, box.w, box.h, label.formatted, textOrientation);
+    // Debug::log(TRACE, "Drawing label at {}x{} with size: {}x{}, text: {}, orientation: {}", 
+    //            box.x, box.y, box.w, box.h, label.formatted, textOrientation);
     return adjustedOpacity < 1.0;
 }
 
