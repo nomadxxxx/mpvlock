@@ -182,11 +182,17 @@ static void configHandleGradientDestroy(void** data) {
 }
 
 static std::string getMainConfigPath() {
-    static const auto paths = Hyprutils::Path::findConfig("mpvlock");
-    if (paths.first.has_value())
-        return paths.first.value();
-    else
-        throw std::runtime_error("Could not find config in HOME, XDG_CONFIG_HOME, XDG_CONFIG_DIRS or /etc/mpvlock.");
+    std::string home = getenv("HOME") ? getenv("HOME") : "";
+    if (home.empty()) {
+        throw std::runtime_error("Could not determine HOME directory for config lookup.");
+    }
+
+    std::string configPath = home + "/.config/mpvlock/mpvlock.conf";
+    if (std::filesystem::exists(configPath)) {
+        return configPath;
+    }
+
+    throw std::runtime_error("Could not find config at " + configPath);
 }
 
 CConfigManager::CConfigManager(std::string configPath) :
@@ -208,162 +214,172 @@ void CConfigManager::init() {
         m_config.addSpecialConfigValue(name, "shadow_passes", Hyprlang::INT{0});                                                                                                       \
         m_config.addSpecialConfigValue(name, "shadow_color", Hyprlang::INT{0xFF000000});                                                                                               \
         m_config.addSpecialConfigValue(name, "shadow_boost", Hyprlang::FLOAT{1.2});
-        m_config.addConfigValue("general:text_trim", Hyprlang::INT{1});
-        m_config.addConfigValue("general:hide_cursor", Hyprlang::INT{0});
-        m_config.addConfigValue("general:grace", Hyprlang::INT{0});
-        m_config.addConfigValue("general:ignore_empty_input", Hyprlang::INT{0});
-        m_config.addConfigValue("general:immediate_render", Hyprlang::INT{0});
-        m_config.addConfigValue("general:fractional_scaling", Hyprlang::INT{2});
-        m_config.addConfigValue("general:screencopy_mode", Hyprlang::INT{0});
-        m_config.addConfigValue("general:fail_timeout", Hyprlang::INT{2000});
-    
-        m_config.addConfigValue("auth:pam:enabled", Hyprlang::INT{1});
-        m_config.addConfigValue("auth:pam:module", Hyprlang::STRING{"mpvlock"});
-        m_config.addConfigValue("auth:fingerprint:enabled", Hyprlang::INT{0});
-        m_config.addConfigValue("auth:fingerprint:ready_message", Hyprlang::STRING{"(Scan fingerprint to unlock)"});
-        m_config.addConfigValue("auth:fingerprint:present_message", Hyprlang::STRING{"Scanning fingerprint"});
-        m_config.addConfigValue("auth:fingerprint:retry_delay", Hyprlang::INT{250});
-    
-        m_config.addConfigValue("animations:enabled", Hyprlang::INT{1});
-    
-        m_config.addSpecialCategory("background", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
-        m_config.addSpecialConfigValue("background", "monitor", Hyprlang::STRING{""});
-        m_config.addSpecialConfigValue("background", "type", Hyprlang::STRING{"image"});
-        m_config.addSpecialConfigValue("background", "path", Hyprlang::STRING{""});
-        m_config.addSpecialConfigValue("background", "color", Hyprlang::INT{0xFF111111});
-        m_config.addSpecialConfigValue("background", "blur_size", Hyprlang::INT{8});
-        m_config.addSpecialConfigValue("background", "blur_passes", Hyprlang::INT{0});
-        m_config.addSpecialConfigValue("background", "noise", Hyprlang::FLOAT{0.0117});
-        m_config.addSpecialConfigValue("background", "contrast", Hyprlang::FLOAT{0.8917});
-        m_config.addSpecialConfigValue("background", "brightness", Hyprlang::FLOAT{0.8172});
-        m_config.addSpecialConfigValue("background", "vibrancy", Hyprlang::FLOAT{0.1686});
-        m_config.addSpecialConfigValue("background", "vibrancy_darkness", Hyprlang::FLOAT{0.05});
-        m_config.addSpecialConfigValue("background", "zindex", Hyprlang::INT{-1});
-        m_config.addSpecialConfigValue("background", "reload_time", Hyprlang::INT{-1});
-        m_config.addSpecialConfigValue("background", "reload_cmd", Hyprlang::STRING{""});
-        m_config.addSpecialConfigValue("background", "crossfade_time", Hyprlang::FLOAT{-1.0});
-        m_config.addSpecialConfigValue("background", "fallback_path", Hyprlang::STRING{""});
-        m_config.addSpecialConfigValue("background", "mpvpaper_mute", Hyprlang::INT{1});
-        m_config.addSpecialConfigValue("background", "mpvpaper_fps", Hyprlang::INT{30});
-        m_config.addSpecialConfigValue("background", "mpvpaper_panscan", Hyprlang::FLOAT{1.0});
-        m_config.addSpecialConfigValue("background", "mpvpaper_hwdec", Hyprlang::STRING{"vaapi"});
-        m_config.addSpecialConfigValue("background", "mpvpaper_layer", Hyprlang::STRING{"bottom"});
-    
-        m_config.addSpecialCategory("shape", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
-        m_config.addSpecialConfigValue("shape", "monitor", Hyprlang::STRING{""});
-        m_config.addSpecialConfigValue("shape", "size", Hyprlang::VEC2{100, 100});
-        m_config.addSpecialConfigValue("shape", "rounding", Hyprlang::INT{0});
-        m_config.addSpecialConfigValue("shape", "border_size", Hyprlang::INT{0});
-        m_config.addSpecialConfigValue("shape", "border_color", GRADIENTCONFIG("0xFF00CFE6"));
-        m_config.addSpecialConfigValue("shape", "color", Hyprlang::INT{0xFF111111});
-        m_config.addSpecialConfigValue("shape", "position", LAYOUTCONFIG("0,0"));
-        m_config.addSpecialConfigValue("shape", "halign", Hyprlang::STRING{"center"});
-        m_config.addSpecialConfigValue("shape", "valign", Hyprlang::STRING{"center"});
-        m_config.addSpecialConfigValue("shape", "rotate", Hyprlang::FLOAT{0});
-        m_config.addSpecialConfigValue("shape", "xray", Hyprlang::INT{0});
-        m_config.addSpecialConfigValue("shape", "zindex", Hyprlang::INT{0});
-        SHADOWABLE("shape");
-    
-        m_config.addSpecialCategory("image", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
-        m_config.addSpecialConfigValue("image", "monitor", Hyprlang::STRING{""});
-        m_config.addSpecialConfigValue("image", "path", Hyprlang::STRING{""});
-        m_config.addSpecialConfigValue("image", "size", Hyprlang::INT{150});
-        m_config.addSpecialConfigValue("image", "rounding", Hyprlang::INT{-1});
-        m_config.addSpecialConfigValue("image", "border_size", Hyprlang::INT{4});
-        m_config.addSpecialConfigValue("image", "border_color", GRADIENTCONFIG("0xFFDDDDDD"));
-        m_config.addSpecialConfigValue("image", "position", LAYOUTCONFIG("0,0"));
-        m_config.addSpecialConfigValue("image", "halign", Hyprlang::STRING{"center"});
-        m_config.addSpecialConfigValue("image", "valign", Hyprlang::STRING{"center"});
-        m_config.addSpecialConfigValue("image", "rotate", Hyprlang::FLOAT{0});
-        m_config.addSpecialConfigValue("image", "reload_time", Hyprlang::INT{-1});
-        m_config.addSpecialConfigValue("image", "reload_cmd", Hyprlang::STRING{""});
-        m_config.addSpecialConfigValue("image", "zindex", Hyprlang::INT{0});
-        SHADOWABLE("image");
-    
-        m_config.addSpecialCategory("input-field", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
-        m_config.addSpecialConfigValue("input-field", "monitor", Hyprlang::STRING{""});
-        m_config.addSpecialConfigValue("input-field", "size", LAYOUTCONFIG("400,90"));
-        m_config.addSpecialConfigValue("input-field", "inner_color", Hyprlang::INT{0xFFDDDDDD});
-        m_config.addSpecialConfigValue("input-field", "outer_color", GRADIENTCONFIG("0xFF111111"));
-        m_config.addSpecialConfigValue("input-field", "outline_thickness", Hyprlang::INT{4});
-        m_config.addSpecialConfigValue("input-field", "dots_size", Hyprlang::FLOAT{0.25});
-        m_config.addSpecialConfigValue("input-field", "dots_center", Hyprlang::INT{1});
-        m_config.addSpecialConfigValue("input-field", "dots_spacing", Hyprlang::FLOAT{0.2});
-        m_config.addSpecialConfigValue("input-field", "dots_rounding", Hyprlang::INT{-1});
-        m_config.addSpecialConfigValue("input-field", "dots_text_format", Hyprlang::STRING{""});
-        m_config.addSpecialConfigValue("input-field", "fade_on_empty", Hyprlang::INT{1});
-        m_config.addSpecialConfigValue("input-field", "fade_timeout", Hyprlang::INT{2000});
-        m_config.addSpecialConfigValue("input-field", "font_color", Hyprlang::INT{0xFF000000});
-        m_config.addSpecialConfigValue("input-field", "font_family", Hyprlang::STRING{"Sans"});
-        m_config.addSpecialConfigValue("input-field", "halign", Hyprlang::STRING{"center"});
-        m_config.addSpecialConfigValue("input-field", "valign", Hyprlang::STRING{"center"});
-        m_config.addSpecialConfigValue("input-field", "position", LAYOUTCONFIG("0,0"));
-        m_config.addSpecialConfigValue("input-field", "placeholder_text", Hyprlang::STRING{"<i>Input Password</i>"});
-        m_config.addSpecialConfigValue("input-field", "hide_input", Hyprlang::INT{0});
-        m_config.addSpecialConfigValue("input-field", "hide_input_base_color", Hyprlang::INT{0xEE00FF99});
-        m_config.addSpecialConfigValue("input-field", "rounding", Hyprlang::INT{-1});
-        m_config.addSpecialConfigValue("input-field", "check_color", GRADIENTCONFIG("0xFF22CC88"));
-        m_config.addSpecialConfigValue("input-field", "fail_color", GRADIENTCONFIG("0xFFCC2222"));
-        m_config.addSpecialConfigValue("input-field", "fail_text", Hyprlang::STRING{"<i>$FAIL</i>"});
-        m_config.addSpecialConfigValue("input-field", "capslock_color", GRADIENTCONFIG(""));
-        m_config.addSpecialConfigValue("input-field", "numlock_color", GRADIENTCONFIG(""));
-        m_config.addSpecialConfigValue("input-field", "bothlock_color", GRADIENTCONFIG(""));
-        m_config.addSpecialConfigValue("input-field", "invert_numlock", Hyprlang::INT{0});
-        m_config.addSpecialConfigValue("input-field", "swap_font_color", Hyprlang::INT{0});
-        m_config.addSpecialConfigValue("input-field", "zindex", Hyprlang::INT{0});
-        SHADOWABLE("input-field");
-    
-        m_config.addSpecialCategory("label", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
-        m_config.addSpecialConfigValue("label", "monitor", Hyprlang::STRING{""});
-        m_config.addSpecialConfigValue("label", "position", LAYOUTCONFIG("0,0"));
-        m_config.addSpecialConfigValue("label", "color", Hyprlang::INT{0xFFFFFFFF});
-        m_config.addSpecialConfigValue("label", "font_size", Hyprlang::INT{16});
-        m_config.addSpecialConfigValue("label", "text", Hyprlang::STRING{"Sample Text"});
-        m_config.addSpecialConfigValue("label", "font_family", Hyprlang::STRING{"Sans"});
-        m_config.addSpecialConfigValue("label", "halign", Hyprlang::STRING{"none"});
-        m_config.addSpecialConfigValue("label", "valign", Hyprlang::STRING{"none"});
-        m_config.addSpecialConfigValue("label", "rotate", Hyprlang::FLOAT{0});
-        m_config.addSpecialConfigValue("label", "text_align", Hyprlang::STRING{""});
-        m_config.addSpecialConfigValue("label", "text_orientation", Hyprlang::STRING{"horizontal"});
-        m_config.addSpecialConfigValue("label", "zindex", Hyprlang::INT{0});
-        SHADOWABLE("label");
-        m_config.registerHandler(&::handleSource, "source", {.allowFlags = false});
-        m_config.registerHandler(&::handleBezier, "bezier", {.allowFlags = false});
-        m_config.registerHandler(&::handleAnimation, "animation", {.allowFlags = false});
-    
-        //
-        // Init Animations
-        //
-        m_AnimationTree.createNode("global");
-    
-        // toplevel
-        m_AnimationTree.createNode("fade", "global");
-        m_AnimationTree.createNode("inputField", "global");
-    
-        // inputField
-        m_AnimationTree.createNode("inputFieldColors", "inputField");
-        m_AnimationTree.createNode("inputFieldFade", "inputField");
-        m_AnimationTree.createNode("inputFieldWidth", "inputField");
-        m_AnimationTree.createNode("inputFieldDots", "inputField");
-    
-        // fade
-        m_AnimationTree.createNode("fadeIn", "fade");
-        m_AnimationTree.createNode("fadeOut", "fade");
-    
-        // set config for root node
-        m_AnimationTree.setConfigForNode("global", 1, 8.f, "default");
-        m_AnimationTree.setConfigForNode("inputFieldColors", 1, 8.f, "linear");
-    
-        m_config.commence();
-    
-        auto result = m_config.parse();
-    
-        if (result.error)
-            Debug::log(ERR, "Config has errors:\n{}\nProceeding ignoring faulty entries", result.getError());
-    
+
+    m_config.addConfigValue("general:text_trim", Hyprlang::INT{1});
+    m_config.addConfigValue("general:hide_cursor", Hyprlang::INT{0});
+    m_config.addConfigValue("general:grace", Hyprlang::INT{0});
+    m_config.addConfigValue("general:ignore_empty_input", Hyprlang::INT{0});
+    m_config.addConfigValue("general:immediate_render", Hyprlang::INT{0});
+    m_config.addConfigValue("general:fractional_scaling", Hyprlang::INT{2});
+    m_config.addConfigValue("general:screencopy_mode", Hyprlang::INT{0});
+    m_config.addConfigValue("general:fail_timeout", Hyprlang::INT{2000});
+
+    m_config.addConfigValue("auth:pam:enabled", Hyprlang::INT{1});
+    m_config.addConfigValue("auth:pam:module", Hyprlang::STRING{"mpvlock"});
+    m_config.addConfigValue("auth:fingerprint:enabled", Hyprlang::INT{0});
+    m_config.addConfigValue("auth:fingerprint:ready_message", Hyprlang::STRING{"(Scan fingerprint to unlock)"});
+    m_config.addConfigValue("auth:fingerprint:present_message", Hyprlang::STRING{"Scanning fingerprint"});
+    m_config.addConfigValue("auth:fingerprint:retry_delay", Hyprlang::INT{250});
+
+    m_config.addConfigValue("animations:enabled", Hyprlang::INT{1});
+
+    m_config.addSpecialCategory("background", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
+    m_config.addSpecialConfigValue("background", "monitor", Hyprlang::STRING{""});
+    m_config.addSpecialConfigValue("background", "type", Hyprlang::STRING{"image"});
+    m_config.addSpecialConfigValue("background", "path", Hyprlang::STRING{""});
+    m_config.addSpecialConfigValue("background", "color", Hyprlang::INT{0xFF111111});
+    m_config.addSpecialConfigValue("background", "blur_size", Hyprlang::INT{8});
+    m_config.addSpecialConfigValue("background", "blur_passes", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("background", "noise", Hyprlang::FLOAT{0.0117});
+    m_config.addSpecialConfigValue("background", "contrast", Hyprlang::FLOAT{0.8917});
+    m_config.addSpecialConfigValue("background", "brightness", Hyprlang::FLOAT{0.8172});
+    m_config.addSpecialConfigValue("background", "vibrancy", Hyprlang::FLOAT{0.1686});
+    m_config.addSpecialConfigValue("background", "vibrancy_darkness", Hyprlang::FLOAT{0.05});
+    m_config.addSpecialConfigValue("background", "zindex", Hyprlang::INT{-1});
+    m_config.addSpecialConfigValue("background", "reload_time", Hyprlang::INT{-1});
+    m_config.addSpecialConfigValue("background", "reload_cmd", Hyprlang::STRING{""});
+    m_config.addSpecialConfigValue("background", "crossfade_time", Hyprlang::FLOAT{-1.0});
+    m_config.addSpecialConfigValue("background", "fallback_path", Hyprlang::STRING{""});
+    m_config.addSpecialConfigValue("background", "mpvpaper_mute", Hyprlang::INT{1});
+    m_config.addSpecialConfigValue("background", "mpvpaper_fps", Hyprlang::INT{30});
+    m_config.addSpecialConfigValue("background", "mpvpaper_panscan", Hyprlang::FLOAT{1.0});
+    m_config.addSpecialConfigValue("background", "mpvpaper_hwdec", Hyprlang::STRING{"vaapi"});
+    m_config.addSpecialConfigValue("background", "mpvpaper_layer", Hyprlang::STRING{"bottom"});
+    m_config.addSpecialConfigValue("background", "fade", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("background", "fade_duration", Hyprlang::INT{1000});
+    m_config.addSpecialCategory("shape", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
+    m_config.addSpecialConfigValue("shape", "monitor", Hyprlang::STRING{""});
+    m_config.addSpecialConfigValue("shape", "size", Hyprlang::VEC2{100, 100});
+    m_config.addSpecialConfigValue("shape", "rounding", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("shape", "border_size", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("shape", "border_color", GRADIENTCONFIG("0xFF00CFE6"));
+    m_config.addSpecialConfigValue("shape", "color", Hyprlang::INT{0xFF111111});
+    m_config.addSpecialConfigValue("shape", "position", LAYOUTCONFIG("0,0"));
+    m_config.addSpecialConfigValue("shape", "halign", Hyprlang::STRING{"center"});
+    m_config.addSpecialConfigValue("shape", "valign", Hyprlang::STRING{"center"});
+    m_config.addSpecialConfigValue("shape", "rotate", Hyprlang::FLOAT{0});
+    m_config.addSpecialConfigValue("shape", "xray", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("shape", "zindex", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("shape", "fade", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("shape", "fade_duration", Hyprlang::INT{1000});
+    SHADOWABLE("shape");
+
+    m_config.addSpecialCategory("image", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
+    m_config.addSpecialConfigValue("image", "monitor", Hyprlang::STRING{""});
+    m_config.addSpecialConfigValue("image", "path", Hyprlang::STRING{""});
+    m_config.addSpecialConfigValue("image", "size", Hyprlang::INT{150});
+    m_config.addSpecialConfigValue("image", "rounding", Hyprlang::INT{-1});
+    m_config.addSpecialConfigValue("image", "border_size", Hyprlang::INT{4});
+    m_config.addSpecialConfigValue("image", "border_color", GRADIENTCONFIG("0xFFDDDDDD"));
+    m_config.addSpecialConfigValue("image", "position", LAYOUTCONFIG("0,0"));
+    m_config.addSpecialConfigValue("image", "halign", Hyprlang::STRING{"center"});
+    m_config.addSpecialConfigValue("image", "valign", Hyprlang::STRING{"center"});
+    m_config.addSpecialConfigValue("image", "rotate", Hyprlang::FLOAT{0});
+    m_config.addSpecialConfigValue("image", "reload_time", Hyprlang::INT{-1});
+    m_config.addSpecialConfigValue("image", "reload_cmd", Hyprlang::STRING{""});
+    m_config.addSpecialConfigValue("image", "zindex", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("image", "fade", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("image", "fade_duration", Hyprlang::INT{1000});
+    SHADOWABLE("image");
+
+    m_config.addSpecialCategory("input-field", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
+    m_config.addSpecialConfigValue("input-field", "monitor", Hyprlang::STRING{""});
+    m_config.addSpecialConfigValue("input-field", "size", LAYOUTCONFIG("400,90"));
+    m_config.addSpecialConfigValue("input-field", "inner_color", Hyprlang::INT{0xFFDDDDDD});
+    m_config.addSpecialConfigValue("input-field", "outer_color", GRADIENTCONFIG("0xFF111111"));
+    m_config.addSpecialConfigValue("input-field", "outline_thickness", Hyprlang::INT{4});
+    m_config.addSpecialConfigValue("input-field", "dots_size", Hyprlang::FLOAT{0.25});
+    m_config.addSpecialConfigValue("input-field", "dots_center", Hyprlang::INT{1});
+    m_config.addSpecialConfigValue("input-field", "dots_spacing", Hyprlang::FLOAT{0.2});
+    m_config.addSpecialConfigValue("input-field", "dots_rounding", Hyprlang::INT{-1});
+    m_config.addSpecialConfigValue("input-field", "dots_text_format", Hyprlang::STRING{""});
+    m_config.addSpecialConfigValue("input-field", "fade_on_empty", Hyprlang::INT{1});
+    m_config.addSpecialConfigValue("input-field", "fade_timeout", Hyprlang::INT{2000});
+    m_config.addSpecialConfigValue("input-field", "font_color", Hyprlang::INT{0xFF000000});
+    m_config.addSpecialConfigValue("input-field", "font_family", Hyprlang::STRING{"Sans"});
+    m_config.addSpecialConfigValue("input-field", "halign", Hyprlang::STRING{"center"});
+    m_config.addSpecialConfigValue("input-field", "valign", Hyprlang::STRING{"center"});
+    m_config.addSpecialConfigValue("input-field", "position", LAYOUTCONFIG("0,0"));
+    m_config.addSpecialConfigValue("input-field", "placeholder_text", Hyprlang::STRING{"<i>Input Password</i>"});
+    m_config.addSpecialConfigValue("input-field", "hide_input", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("input-field", "hide_input_base_color", Hyprlang::INT{0xEE00FF99});
+    m_config.addSpecialConfigValue("input-field", "rounding", Hyprlang::INT{-1});
+    m_config.addSpecialConfigValue("input-field", "check_color", GRADIENTCONFIG("0xFF22CC88"));
+    m_config.addSpecialConfigValue("input-field", "fail_color", GRADIENTCONFIG("0xFFCC2222"));
+    m_config.addSpecialConfigValue("input-field", "fail_text", Hyprlang::STRING{"<i>$FAIL</i>"});
+    m_config.addSpecialConfigValue("input-field", "capslock_color", GRADIENTCONFIG(""));
+    m_config.addSpecialConfigValue("input-field", "numlock_color", GRADIENTCONFIG(""));
+    m_config.addSpecialConfigValue("input-field", "bothlock_color", GRADIENTCONFIG(""));
+    m_config.addSpecialConfigValue("input-field", "invert_numlock", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("input-field", "swap_font_color", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("input-field", "zindex", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("input-field", "fade", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("input-field", "fade_duration", Hyprlang::INT{1000});
+    SHADOWABLE("input-field");
+
+    m_config.addSpecialCategory("label", Hyprlang::SSpecialCategoryOptions{.key = nullptr, .anonymousKeyBased = true});
+    m_config.addSpecialConfigValue("label", "monitor", Hyprlang::STRING{""});
+    m_config.addSpecialConfigValue("label", "position", LAYOUTCONFIG("0,0"));
+    m_config.addSpecialConfigValue("label", "color", Hyprlang::INT{0xFFFFFFFF});
+    m_config.addSpecialConfigValue("label", "font_size", Hyprlang::INT{16});
+    m_config.addSpecialConfigValue("label", "text", Hyprlang::STRING{"Sample Text"});
+    m_config.addSpecialConfigValue("label", "font_family", Hyprlang::STRING{"Sans"});
+    m_config.addSpecialConfigValue("label", "halign", Hyprlang::STRING{"none"});
+    m_config.addSpecialConfigValue("label", "valign", Hyprlang::STRING{"none"});
+    m_config.addSpecialConfigValue("label", "rotate", Hyprlang::FLOAT{0});
+    m_config.addSpecialConfigValue("label", "text_align", Hyprlang::STRING{""});
+    m_config.addSpecialConfigValue("label", "text_orientation", Hyprlang::STRING{"horizontal"});
+    m_config.addSpecialConfigValue("label", "zindex", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("label", "fade", Hyprlang::INT{0});
+    m_config.addSpecialConfigValue("label", "fade_duration", Hyprlang::INT{1000});
+    SHADOWABLE("label");
+
+    m_config.registerHandler(&::handleSource, "source", {.allowFlags = false});
+    m_config.registerHandler(&::handleBezier, "bezier", {.allowFlags = false});
+    m_config.registerHandler(&::handleAnimation, "animation", {.allowFlags = false});
+
+    //
+    // Init Animations
+    //
+    m_AnimationTree.createNode("global");
+
+    // toplevel
+    m_AnimationTree.createNode("fade", "global");
+    m_AnimationTree.createNode("inputField", "global");
+
+    // inputField
+    m_AnimationTree.createNode("inputFieldColors", "inputField");
+    m_AnimationTree.createNode("inputFieldFade", "inputField");
+    m_AnimationTree.createNode("inputFieldWidth", "inputField");
+    m_AnimationTree.createNode("inputFieldDots", "inputField");
+
+    // fade
+    m_AnimationTree.createNode("fadeIn", "fade");
+    m_AnimationTree.createNode("fadeOut", "fade");
+
+    // set config for root node
+    m_AnimationTree.setConfigForNode("global", 1, 8.f, "default");
+    m_AnimationTree.setConfigForNode("inputFieldColors", 1, 8.f, "linear");
+
+    m_config.commence();
+
+    auto result = m_config.parse();
+
+    if (result.error)
+        Debug::log(ERR, "Config has errors:\n{}\nProceeding ignoring faulty entries", result.getError());
+
     #undef SHADOWABLE
 }
-
 std::vector<CConfigManager::SWidgetConfig> CConfigManager::getWidgetConfigs() {
     std::vector<CConfigManager::SWidgetConfig> result;
     std::vector<std::string> keys;
@@ -403,6 +419,8 @@ std::vector<CConfigManager::SWidgetConfig> CConfigManager::getWidgetConfigs() {
                 {"mpvpaper_panscan", m_config.getSpecialConfigValue("background", "mpvpaper_panscan", k.c_str())},
                 {"mpvpaper_hwdec", m_config.getSpecialConfigValue("background", "mpvpaper_hwdec", k.c_str())},
                 {"mpvpaper_layer", m_config.getSpecialConfigValue("background", "mpvpaper_layer", k.c_str())},
+                {"fade", m_config.getSpecialConfigValue("background", "fade", k.c_str())},
+                {"fade_duration", m_config.getSpecialConfigValue("background", "fade_duration", k.c_str())},
             }
         });
         // clang-format on
@@ -427,6 +445,8 @@ std::vector<CConfigManager::SWidgetConfig> CConfigManager::getWidgetConfigs() {
                 {"rotate", m_config.getSpecialConfigValue("shape", "rotate", k.c_str())},
                 {"xray", m_config.getSpecialConfigValue("shape", "xray", k.c_str())},
                 {"zindex", m_config.getSpecialConfigValue("shape", "zindex", k.c_str())},
+                {"fade", m_config.getSpecialConfigValue("shape", "fade", k.c_str())},
+                {"fade_duration", m_config.getSpecialConfigValue("shape", "fade_duration", k.c_str())},
                 SHADOWABLE("shape"),
             }
         });
@@ -453,6 +473,8 @@ std::vector<CConfigManager::SWidgetConfig> CConfigManager::getWidgetConfigs() {
                 {"reload_time", m_config.getSpecialConfigValue("image", "reload_time", k.c_str())},
                 {"reload_cmd", m_config.getSpecialConfigValue("image", "reload_cmd", k.c_str())},
                 {"zindex", m_config.getSpecialConfigValue("image", "zindex", k.c_str())},
+                {"fade", m_config.getSpecialConfigValue("image", "fade", k.c_str())},
+                {"fade_duration", m_config.getSpecialConfigValue("image", "fade_duration", k.c_str())},
                 SHADOWABLE("image"),
             }
         });
@@ -496,6 +518,8 @@ std::vector<CConfigManager::SWidgetConfig> CConfigManager::getWidgetConfigs() {
                 {"invert_numlock", m_config.getSpecialConfigValue("input-field", "invert_numlock", k.c_str())},
                 {"swap_font_color", m_config.getSpecialConfigValue("input-field", "swap_font_color", k.c_str())},
                 {"zindex", m_config.getSpecialConfigValue("input-field", "zindex", k.c_str())},
+                {"fade", m_config.getSpecialConfigValue("input-field", "fade", k.c_str())},
+                {"fade_duration", m_config.getSpecialConfigValue("input-field", "fade_duration", k.c_str())},
                 SHADOWABLE("input-field"),
             }
         });
@@ -521,6 +545,8 @@ std::vector<CConfigManager::SWidgetConfig> CConfigManager::getWidgetConfigs() {
                 {"text_align", m_config.getSpecialConfigValue("label", "text_align", k.c_str())},
                 {"text_orientation", m_config.getSpecialConfigValue("label", "text_orientation", k.c_str())},
                 {"zindex", m_config.getSpecialConfigValue("label", "zindex", k.c_str())},
+                {"fade", m_config.getSpecialConfigValue("label", "fade", k.c_str())},
+                {"fade_duration", m_config.getSpecialConfigValue("label", "fade_duration", k.c_str())},
                 SHADOWABLE("label"),
             }
         });
@@ -557,7 +583,7 @@ std::optional<std::string> CConfigManager::handleSource(const std::string& comma
         if (!std::filesystem::is_regular_file(PATH)) {
             if (std::filesystem::exists(PATH)) {
                 Debug::log(WARN, "source= skipping non-file {}", PATH);
-                continue;
+            continue;
             }
 
             Debug::log(ERR, "source= file doesnt exist");
