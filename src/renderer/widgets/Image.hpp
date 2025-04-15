@@ -25,11 +25,15 @@ class CImage : public IWidget {
     virtual void configure(const std::unordered_map<std::string, std::any>& props, const SP<COutput>& pOutput) override;
     virtual bool draw(const SRenderData& data) override;
     virtual std::string type() const override; // Added for layered rendering
+    virtual void setZindex(int zindex) override;
+    virtual int getZindex() const override;
+    virtual void onTimer(std::shared_ptr<CTimer> timer, void* data) override;
 
     void reset();
     void renderUpdate();
     void onTimerUpdate();
     void plantTimer();
+    void startFade();
 
   private:
     WP<CImage> m_self;
@@ -55,4 +59,16 @@ class CImage : public IWidget {
     SPreloadedAsset* asset = nullptr;
     COutput* output = nullptr;
     CShadowable shadow;
+
+    int zindex = 20; // Default: above shape, below input-field
+
+    // Fading functionality
+    struct {
+        float opacity = 1.0f;
+        bool enabled = false;
+        bool fadingIn = true;
+        uint64_t durationMs = 1000;
+        std::shared_ptr<CTimer> fadeTimer = nullptr;
+        std::chrono::system_clock::time_point startTime;
+    } fade;
 };

@@ -11,16 +11,16 @@
 
   version = lib.removeSuffix "\n" (builtins.readFile ../VERSION);
 in {
-  default = inputs.self.overlays.hyprlock;
+  default = inputs.self.overlays.mpvlock;
 
-  hyprlock = lib.composeManyExtensions [
+  mpvlock = lib.composeManyExtensions [
     inputs.hyprgraphics.overlays.default
     inputs.hyprlang.overlays.default
     inputs.hyprutils.overlays.default
     inputs.hyprwayland-scanner.overlays.default
     inputs.self.overlays.sdbuscpp
     (final: prev: {
-      hyprlock = prev.callPackage ./default.nix {
+      mpvlock = prev.callPackage ./default.nix {
         stdenv = prev.gcc14Stdenv;
         version = version + "+date=" + (mkDate (inputs.self.lastModifiedDate or "19700101")) + "_" + (inputs.self.shortRev or "dirty");
         inherit (final) hyprlang;
@@ -34,7 +34,7 @@ in {
       version = "2.0.0";
 
       src = final.fetchFromGitHub {
-        owner = "Kistler-group";
+        owner = "Kistler-Group";
         repo = "sdbus-cpp";
         rev = "refs/tags/v${self.version}";
         hash = "sha256-W8V5FRhV3jtERMFrZ4gf30OpIQLYoj2yYGpnYOmH2+g=";

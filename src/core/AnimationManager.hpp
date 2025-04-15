@@ -6,9 +6,9 @@
 #include "../helpers/AnimatedVariable.hpp"
 #include "../defines.hpp"
 
-class CHyprlockAnimationManager : public Hyprutils::Animation::CAnimationManager {
+class CMpvlockAnimationManager : public Hyprutils::Animation::CAnimationManager {
   public:
-    CHyprlockAnimationManager();
+    CMpvlockAnimationManager();
 
     void         tick();
     virtual void scheduleTick();
@@ -30,4 +30,4 @@ class CHyprlockAnimationManager : public Hyprutils::Animation::CAnimationManager
     bool m_bTickScheduled = false;
 };
 
-inline UP<CHyprlockAnimationManager> g_pAnimationManager;
+inline UP<CMpvlockAnimationManager> g_pAnimationManager;

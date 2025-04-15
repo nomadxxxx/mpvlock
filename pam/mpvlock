@@ -1,4 +1,4 @@
-# PAM configuration file for hyprlock
+# PAM configuration file for mpvlock
 # the 'login' configuration file (see /etc/pam.d/login)
 
 auth        include     login

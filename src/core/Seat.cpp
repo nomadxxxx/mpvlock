@@ -1,5 +1,5 @@
 #include "Seat.hpp"
-#include "hyprlock.hpp"
+#include "mpvlock.hpp"  // Updated from hyprlock.hpp
 #include "../helpers/Log.hpp"
 #include "../config/ConfigManager.hpp"
 #include <chrono>
@@ -27,12 +27,12 @@ void CSeatManager::registerSeat(SP<CCWlSeat> seat) {
             m_pPointer = makeShared<CCWlPointer>(r->sendGetPointer());
 
             m_pPointer->setMotion([](CCWlPointer* r, uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
-                if (std::chrono::system_clock::now() > g_pHyprlock->m_tGraceEnds)
+                if (std::chrono::system_clock::now() > g_pMpvlock->m_tGraceEnds)  // Updated from g_pHyprlock
                     return;
 
-                if (!g_pHyprlock->isUnlocked() && g_pHyprlock->m_vLastEnterCoords.distance({wl_fixed_to_double(surface_x), wl_fixed_to_double(surface_y)}) > 5) {
+                if (!g_pMpvlock->isUnlocked() && g_pMpvlock->m_vLastEnterCoords.distance({wl_fixed_to_double(surface_x), wl_fixed_to_double(surface_y)}) > 5) {  // Updated from g_pHyprlock
                     Debug::log(LOG, "In grace and cursor moved more than 5px, unlocking!");
-                    g_pHyprlock->unlock();
+                    g_pMpvlock->unlock();  // Updated from g_pHyprlock
                 }
             });
 
@@ -49,7 +49,7 @@ void CSeatManager::registerSeat(SP<CCWlSeat> seat) {
                 else
                     m_pCursorShape->setShape(wpCursorShapeDeviceV1Shape::WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT);
 
-                g_pHyprlock->m_vLastEnterCoords = {wl_fixed_to_double(surface_x), wl_fixed_to_double(surface_y)};
+                g_pMpvlock->m_vLastEnterCoords = {wl_fixed_to_double(surface_x), wl_fixed_to_double(surface_y)};  // Updated from g_pHyprlock
             });
         }
 
@@ -98,16 +98,16 @@ void CSeatManager::registerSeat(SP<CCWlSeat> seat) {
             });
 
             m_pKeeb->setKey([](CCWlKeyboard* r, uint32_t serial, uint32_t time, uint32_t key, wl_keyboard_key_state state) {
-                g_pHyprlock->onKey(key, state == WL_KEYBOARD_KEY_STATE_PRESSED);
+                g_pMpvlock->onKey(key, state == WL_KEYBOARD_KEY_STATE_PRESSED);  // Updated from g_pHyprlock
             });
 
             m_pKeeb->setModifiers([this](CCWlKeyboard* r, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {
                 if (!m_pXKBState)
                     return;
 
-                if (group != g_pHyprlock->m_uiActiveLayout) {
-                    g_pHyprlock->m_uiActiveLayout = group;
-                    for (auto& t : g_pHyprlock->getTimers()) {
+                if (group != g_pMpvlock->m_uiActiveLayout) {  // Updated from g_pHyprlock
+                    g_pMpvlock->m_uiActiveLayout = group;  // Updated from g_pHyprlock
+                    for (auto& t : g_pMpvlock->getTimers()) {  // Updated from g_pHyprlock
                         if (t->canForceUpdate()) {
                             t->call(t);
                             t->cancel();
@@ -116,13 +116,13 @@ void CSeatManager::registerSeat(SP<CCWlSeat> seat) {
                 }
 
                 xkb_state_update_mask(m_pXKBState, mods_depressed, mods_latched, mods_locked, 0, 0, group);
-                g_pHyprlock->m_bCapsLock = xkb_state_mod_name_is_active(m_pXKBState, XKB_MOD_NAME_CAPS, XKB_STATE_MODS_LOCKED);
-                g_pHyprlock->m_bNumLock  = xkb_state_mod_name_is_active(m_pXKBState, XKB_MOD_NAME_NUM, XKB_STATE_MODS_LOCKED);
+                g_pMpvlock->m_bCapsLock = xkb_state_mod_name_is_active(m_pXKBState, XKB_MOD_NAME_CAPS, XKB_STATE_MODS_LOCKED);  // Updated from g_pHyprlock
+                g_pMpvlock->m_bNumLock  = xkb_state_mod_name_is_active(m_pXKBState, XKB_MOD_NAME_NUM, XKB_STATE_MODS_LOCKED);  // Updated from g_pHyprlock
             });
 
             m_pKeeb->setRepeatInfo([](CCWlKeyboard* r, int32_t rate, int32_t delay) {
-                g_pHyprlock->m_iKeebRepeatRate  = rate;
-                g_pHyprlock->m_iKeebRepeatDelay = delay;
+                g_pMpvlock->m_iKeebRepeatRate  = rate;  // Updated from g_pHyprlock
+                g_pMpvlock->m_iKeebRepeatDelay = delay;  // Updated from g_pHyprlock
             });
         }
     });

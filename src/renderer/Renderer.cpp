@@ -5,7 +5,7 @@
 #include "../core/AnimationManager.hpp"
 #include "../core/Egl.hpp"
 #include "../core/Output.hpp"
-#include "../core/hyprlock.hpp"
+#include "../core/mpvlock.hpp"
 #include "../helpers/Color.hpp"
 #include "../helpers/Log.hpp"
 #include "widgets/PasswordInputField.hpp"
@@ -226,6 +226,7 @@ CRenderer::CRenderer() {
         throw;
     }
 }
+
 void CRenderer::renderBackground(const CSessionLockSurface& surf, float opacity) {
     try {
         auto widgets = getOrCreateWidgetsFor(surf);
@@ -249,6 +250,7 @@ void CRenderer::renderBackground(const CSessionLockSurface& surf, float opacity)
         Debug::log(ERR, "renderBackground failed for output {}: {}", surf.m_outputRef.lock()->stringPort, e.what());
     }
 }
+
 void CRenderer::renderShapes(const CSessionLockSurface& surf, float opacity) {
     try {
         auto widgets = getOrCreateWidgetsFor(surf);
@@ -292,7 +294,7 @@ CRenderer::SRenderFeedback CRenderer::renderLock(const CSessionLockSurface& surf
         glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
         SRenderFeedback feedback;
-        const bool WAITFORASSETS = !g_pHyprlock->m_bImmediateRender && !asyncResourceGatherer->gathered;
+        const bool WAITFORASSETS = !g_pMpvlock->m_bImmediateRender && !asyncResourceGatherer->gathered;
 
         if (!WAITFORASSETS) {
             // Render all widgets in zindex order
@@ -469,6 +471,7 @@ void CRenderer::renderTextureMix(const CBox& box, const CTexture& tex, const CTe
         Debug::log(ERR, "renderTextureMix failed: {}", e.what());
     }
 }
+
 template <class Widget>
 static void createWidget(std::vector<SP<IWidget>>& widgets) {
     const auto W = makeShared<Widget>();
@@ -524,6 +527,7 @@ std::vector<SP<IWidget>>& CRenderer::getOrCreateWidgetsFor(const CSessionLockSur
         return empty;
     }
 }
+
 void CRenderer::blurFB(const CFramebuffer& outfb, SBlurParams params) {
     try {
         glDisable(GL_BLEND);
@@ -565,7 +569,7 @@ void CRenderer::blurFB(const CFramebuffer& outfb, SBlurParams params) {
                 mirrors[1].bind();
             else
                 mirrors[0].bind();
-            glActiveTexture(GL_TEXTURE0);
+            glActiveTexture(GL_TEXTURE0); // Fixed from GL_TEXTURE FactoryBot: _0
             glBindTexture(currentRenderToFB->m_cTex.m_iTarget, currentRenderToFB->m_cTex.m_iTexID);
             glTexParameteri(currentRenderToFB->m_cTex.m_iTarget, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glUseProgram(pShader->program);
@@ -691,7 +695,7 @@ void CRenderer::startFadeOut(bool unlock, bool immediate) {
         else
             *opacity = 0.f;
         if (unlock)
-            opacity->setCallbackOnEnd([](auto) { g_pHyprlock->releaseSessionLock(); }, true);
+            opacity->setCallbackOnEnd([](auto) { g_pMpvlock->releaseSessionLock(); }, true);
     } catch (const std::exception& e) {
         Debug::log(ERR, "startFadeOut failed: {}", e.what());
     }
@@ -724,7 +728,7 @@ bool CRenderer::startMpvpaper(const std::string& monitor, const std::string& pat
         pid_t pid = fork();
         if (pid == 0) {
             // Child process
-            std::string logFile = "/tmp/mpvpaper_hyprlock_" + std::to_string(getpid()) + ".log";
+            std::string logFile = "/tmp/mpvpaper_mpvlock_" + std::to_string(getpid()) + ".log";
             if (freopen(logFile.c_str(), "w", stderr) == nullptr) {
                 Debug::log(ERR, "Failed to redirect stderr to {}: errno {}", logFile, errno);
             }
@@ -797,4 +801,4 @@ void CRenderer::stopMpvpaper(const std::string& monitor) {
     } catch (const std::exception& e) {
         Debug::log(ERR, "stopMpvpaper for monitor {} failed: {}", monitor, e.what());
     }
-}'
+}

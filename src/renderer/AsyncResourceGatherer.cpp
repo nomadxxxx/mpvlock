@@ -6,7 +6,7 @@
 #include <pango/pangocairo.h>
 #include <algorithm>
 #include <filesystem>
-#include "../core/hyprlock.hpp"
+#include "../core/mpvlock.hpp"  // Updated from hyprlock.hpp
 #include "../helpers/MiscFunctions.hpp"
 #include "src/helpers/Color.hpp"
 #include "src/helpers/Log.hpp"
@@ -14,7 +14,7 @@
 using namespace Hyprgraphics;
 
 CAsyncResourceGatherer::CAsyncResourceGatherer() {
-    if (g_pHyprlock->getScreencopy())
+    if (g_pMpvlock->getScreencopy())  // Updated from g_pHyprlock
         enqueueScreencopyFrames();
 
     initialGatherThread = std::thread([this]() { this->gather(); });
@@ -39,7 +39,7 @@ void CAsyncResourceGatherer::enqueueScreencopyFrames() {
         // mamma mia
         if (c.monitor.empty()) {
             mons.clear();
-            for (auto& m : g_pHyprlock->m_vOutputs) {
+            for (auto& m : g_pMpvlock->m_vOutputs) {  // Updated from g_pHyprlock
                 mons.push_back(m->stringPort);
             }
             break;
@@ -48,9 +48,9 @@ void CAsyncResourceGatherer::enqueueScreencopyFrames() {
     }
 
     for (auto& mon : mons) {
-        const auto MON = std::ranges::find_if(g_pHyprlock->m_vOutputs, [mon](const auto& other) { return other->stringPort == mon || other->stringDesc.starts_with(mon); });
+        const auto MON = std::ranges::find_if(g_pMpvlock->m_vOutputs, [mon](const auto& other) { return other->stringPort == mon || other->stringDesc.starts_with(mon); });  // Updated from g_pHyprlock
 
-        if (MON == g_pHyprlock->m_vOutputs.end())
+        if (MON == g_pMpvlock->m_vOutputs.end())  // Updated from g_pHyprlock
             continue;
 
         scframes.emplace_back(makeUnique<CScreencopyFrame>(*MON));
@@ -127,7 +127,7 @@ void CAsyncResourceGatherer::gather() {
         }
     }
 
-    while (!g_pHyprlock->m_bTerminate && std::ranges::any_of(scframes, [](const auto& d) { return !d->m_asset.ready; })) {
+    while (!g_pMpvlock->m_bTerminate && std::ranges::any_of(scframes, [](const auto& d) { return !d->m_asset.ready; })) {  // Updated from g_pHyprlock
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
@@ -218,7 +218,7 @@ void CAsyncResourceGatherer::renderText(const SPreloadRequest& rq) {
     const bool        ISCMD      = rq.props.contains("cmd") ? std::any_cast<bool>(rq.props.at("cmd")) : false;
 
     static const auto TRIM = g_pConfigManager->getValue<Hyprlang::INT>("general:text_trim");
-    std::string       text = ISCMD ? g_pHyprlock->spawnSync(rq.asset) : rq.asset;
+    std::string       text = ISCMD ? g_pMpvlock->spawnSync(rq.asset) : rq.asset;  // Updated from g_pHyprlock
 
     if (*TRIM) {
         text.erase(0, text.find_first_not_of(" \n\r\t"));
@@ -302,7 +302,7 @@ void CAsyncResourceGatherer::renderText(const SPreloadRequest& rq) {
 }
 
 void CAsyncResourceGatherer::asyncAssetSpinLock() {
-    while (!g_pHyprlock->m_bTerminate) {
+    while (!g_pMpvlock->m_bTerminate) {  // Updated from g_pHyprlock
 
         std::unique_lock lk(asyncLoopState.requestsMutex);
         if (!asyncLoopState.pending) // avoid a lock if a thread managed to request something already since we .unlock()ed
@@ -335,7 +335,7 @@ void CAsyncResourceGatherer::asyncAssetSpinLock() {
 
             // plant timer for callback
             if (r.callback)
-                g_pHyprlock->addTimer(std::chrono::milliseconds(0), [cb = r.callback](auto, auto) { cb(); }, nullptr);
+                g_pMpvlock->addTimer(std::chrono::milliseconds(0), [cb = r.callback](auto, auto) { cb(); }, nullptr);  // Updated from g_pHyprlock
         }
     }
 }

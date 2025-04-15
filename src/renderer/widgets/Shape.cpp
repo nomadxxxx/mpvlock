@@ -2,6 +2,7 @@
 #include "../Renderer.hpp"
 #include "../../config/ConfigDataValues.hpp"
 #include "../../helpers/Log.hpp"
+#include "../../core/mpvlock.hpp"
 #include <hyprlang.hpp>
 #include <GLES3/gl32.h>
 #include <cmath>
@@ -15,8 +16,59 @@ std::string CShape::type() const {
     return "shape";
 }
 
+void CShape::setZindex(int zindex) {
+    this->zindex = zindex;
+}
+
+int CShape::getZindex() const {
+    return zindex;
+}
+
+void CShape::onTimer(std::shared_ptr<CTimer> timer, void* data) {
+    WP<CShape> ref = *static_cast<WP<CShape>*>(data);
+    if (auto PSHAPE = ref.lock(); PSHAPE) {
+        if (!PSHAPE->fade.enabled) {
+            Debug::log(TRACE, "CShape::onTimer called, but fading is not enabled.");
+            return;
+        }
+
+        auto now = std::chrono::system_clock::now();
+        auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - PSHAPE->fade.startTime).count();
+        float progress = static_cast<float>(elapsedMs) / PSHAPE->fade.durationMs;
+
+        if (progress >= 1.0f) {
+            // Fading complete
+            PSHAPE->fade.opacity = PSHAPE->fade.fadingIn ? 1.0f : 0.0f;
+            PSHAPE->fade.fadeTimer->cancel();
+            PSHAPE->fade.fadeTimer.reset();
+            PSHAPE->fade.fadingIn = !PSHAPE->fade.fadingIn; // Toggle direction for next fade
+            Debug::log(TRACE, "CShape fading complete: opacity={}", PSHAPE->fade.opacity);
+        } else {
+            // Update opacity
+            PSHAPE->fade.opacity = PSHAPE->fade.fadingIn ? progress : 1.0f - progress;
+            Debug::log(TRACE, "CShape fading: progress={}, opacity={}", progress, PSHAPE->fade.opacity);
+        }
+
+        // Trigger a render to reflect the new opacity
+        g_pMpvlock->renderOutput(PSHAPE->outputPort);
+    }
+}
+
+void CShape::startFade() {
+    if (!fade.enabled || fade.fadeTimer) {
+        return; // Fading not enabled or already in progress
+    }
+
+    fade.startTime = std::chrono::system_clock::now();
+    fade.fadeTimer = g_pMpvlock->addTimer(std::chrono::milliseconds(16), // ~60 FPS
+                                          [REF = m_self](std::shared_ptr<CTimer> timer, void*) { REF.lock()->onTimer(timer, (void*)&REF); },
+                                          nullptr, false);
+    Debug::log(LOG, "CShape starting fade: fadingIn={}, duration={}ms", fade.fadingIn, fade.durationMs);
+}
+
 void CShape::configure(const std::unordered_map<std::string, std::any>& props, const SP<COutput>& pOutput) {
     viewport = pOutput->getViewport();
+    outputPort = pOutput->stringPort; // Set outputPort
 
     try {
         // Log all props for debugging
@@ -265,6 +317,37 @@ void CShape::configure(const std::unordered_map<std::string, std::any>& props, c
             }
         }
 
+        // Parse fading options
+        fade.enabled = false;
+        if (props.contains("fade")) {
+            auto val = props.at("fade");
+            if (val.type() == typeid(Hyprlang::INT)) {
+                fade.enabled = std::any_cast<Hyprlang::INT>(val) != 0;
+            } else {
+                Debug::log(WARN, "Shape fade has unexpected type, defaulting to disabled");
+            }
+        }
+
+        fade.durationMs = 1000; // Default 1 second
+        if (props.contains("fade_duration")) {
+            auto val = props.at("fade_duration");
+            if (val.type() == typeid(Hyprlang::INT)) {
+                fade.durationMs = std::any_cast<Hyprlang::INT>(val);
+                if (fade.durationMs <= 0) {
+                    Debug::log(WARN, "Shape fade_duration invalid value: {}, defaulting to 1000ms", fade.durationMs);
+                    fade.durationMs = 1000;
+                }
+            } else if (val.type() == typeid(Hyprlang::FLOAT)) {
+                fade.durationMs = static_cast<uint64_t>(std::any_cast<Hyprlang::FLOAT>(val));
+                if (fade.durationMs <= 0) {
+                    Debug::log(WARN, "Shape fade_duration invalid value: {}, defaulting to 1000ms", fade.durationMs);
+                    fade.durationMs = 1000;
+                }
+            } else {
+                Debug::log(WARN, "Shape fade_duration has unexpected type, defaulting to 1000ms");
+            }
+        }
+
         // Adjust position based on halign/valign
         Vector2D realSize = size + Vector2D{border * 2.0, border * 2.0};
         if (halign != "none" || valign != "none") {
@@ -274,8 +357,13 @@ void CShape::configure(const std::unordered_map<std::string, std::any>& props, c
             Debug::log(LOG, "Skipped posFromHVAlign, using raw position: {}x{}", pos.x, pos.y);
         }
 
+        // Start fading if enabled
+        if (fade.enabled) {
+            startFade();
+        }
+
         // Log final state
-        Debug::log(LOG, "Shape configured: pos={}x{}, size={}x{}, zindex={}", pos.x, pos.y, size.x, size.y, getZindex());
+        Debug::log(LOG, "Shape configured: pos={}x{}, size={}x{}, zindex={}, fade_enabled={}", pos.x, pos.y, size.x, size.y, getZindex(), fade.enabled);
     } catch (const std::exception& e) {
         Debug::log(ERR, "CShape::configure failed: {}", e.what());
         pos = {0, 0};
@@ -287,6 +375,7 @@ void CShape::configure(const std::unordered_map<std::string, std::any>& props, c
         border = 0;
         rounding = 0;
         blurEnabled = false;
+        fade.enabled = false;
     }
 }
 
@@ -296,8 +385,10 @@ bool CShape::draw(const SRenderData& data) {
         box.round();
         box.rot = angle;
 
-        Debug::log(LOG, "Drawing shape at {}x{} with size: {}x{}, color: r={}, g={}, b={}, a={}, zindex={}",
-                   box.x, box.y, box.w, box.h, color.r, color.g, color.b, color.a, getZindex());
+        Debug::log(LOG, "Drawing shape at {}x{} with size: {}x{}, color: r={}, g={}, b={}, a={}, zindex={}, opacity={}",
+                   box.x, box.y, box.w, box.h, color.r, color.g, color.b, color.a, getZindex(), fade.opacity);
+
+        float adjustedOpacity = data.opacity * fade.opacity;
 
         if (blurEnabled) {
             if (!shapeFB.isAllocated()) {
@@ -310,14 +401,18 @@ bool CShape::draw(const SRenderData& data) {
 
             if (shapeType == "rectangle") {
                 CBox shapeBox = {border, border, size.x, size.y};
-                g_pRenderer->renderRect(shapeBox, color, rounding);
+                CHyprColor adjustedColor = color;
+                adjustedColor.a *= adjustedOpacity;
+                g_pRenderer->renderRect(shapeBox, adjustedColor, rounding);
                 if (border > 0 && !borderGrad.m_vColorsOkLabA.empty()) {
                     CBox borderBox = {0, 0, size.x + border * 2, size.y + border * 2};
-                    g_pRenderer->renderBorder(borderBox, borderGrad, border, rounding, data.opacity);
+                    g_pRenderer->renderBorder(borderBox, borderGrad, border, rounding, adjustedOpacity);
                 }
             } else {
                 Debug::log(WARN, "Shape type {} not implemented, rendering rectangle", shapeType);
-                g_pRenderer->renderRect(box, color, rounding);
+                CHyprColor adjustedColor = color;
+                adjustedColor.a *= adjustedOpacity;
+                g_pRenderer->renderRect(box, adjustedColor, rounding);
             }
 
             CRenderer::SBlurParams rendererBlurParams = {
@@ -330,23 +425,27 @@ bool CShape::draw(const SRenderData& data) {
             CBox texBox = {pos.x - border, pos.y - border, size.x + border * 2, size.y + border * 2};
             texBox.round();
             texBox.rot = angle;
-            g_pRenderer->renderTexture(texBox, shapeFB.m_cTex, data.opacity, rounding, HYPRUTILS_TRANSFORM_FLIPPED_180);
+            g_pRenderer->renderTexture(texBox, shapeFB.m_cTex, adjustedOpacity, rounding, HYPRUTILS_TRANSFORM_FLIPPED_180);
         } else {
             if (shapeType == "rectangle") {
-                g_pRenderer->renderRect(box, color, rounding);
+                CHyprColor adjustedColor = color;
+                adjustedColor.a *= adjustedOpacity;
+                g_pRenderer->renderRect(box, adjustedColor, rounding);
                 if (border > 0 && !borderGrad.m_vColorsOkLabA.empty()) {
                     CBox borderBox = {pos.x - border, pos.y - border, size.x + border * 2, size.y + border * 2};
                     borderBox.round();
                     box.rot = angle;
-                    g_pRenderer->renderBorder(borderBox, borderGrad, border, rounding, data.opacity);
+                    g_pRenderer->renderBorder(borderBox, borderGrad, border, rounding, adjustedOpacity);
                 }
             } else {
                 Debug::log(WARN, "Shape type {} not implemented, rendering rectangle", shapeType);
-                g_pRenderer->renderRect(box, color, rounding);
+                CHyprColor adjustedColor = color;
+                adjustedColor.a *= adjustedOpacity;
+                g_pRenderer->renderRect(box, adjustedColor, rounding);
             }
         }
 
-        return data.opacity < 1.0;
+        return adjustedOpacity < 1.0;
     } catch (const std::exception& e) {
         Debug::log(ERR, "CShape::draw failed: {}", e.what());
         return false;

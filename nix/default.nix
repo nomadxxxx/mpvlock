@@ -22,11 +22,13 @@
   wayland,
   wayland-protocols,
   wayland-scanner,
+  libmpv, # Added for mpvpaper
+  date-tz ? null, # Optional, confirm need
   version ? "git",
   shortRev ? "",
 }:
 stdenv.mkDerivation {
-  pname = "hyprlock";
+  pname = "mpvlock";
   inherit version;
 
   src = ../.;
@@ -56,18 +58,19 @@ stdenv.mkDerivation {
     systemdLibs
     wayland
     wayland-protocols
-  ];
+    libmpv # Added
+  ] ++ lib.optionals (date-tz != null) [ date-tz ]; # Optional
 
   cmakeFlags = lib.mapAttrsToList lib.cmakeFeature {
-    HYPRLOCK_COMMIT = shortRev;
-    HYPRLOCK_VERSION_COMMIT = ""; # Intentionally left empty (hyprlock --version will always print the commit)
+    MPVLOCK_COMMIT = shortRev;
+    MPVLOCK_VERSION_COMMIT = ""; # Intentionally left empty (mpvlock --version will always print the commit)
   };
 
   meta = {
-    homepage = "https://github.com/hyprwm/hyprlock";
-    description = "A gpu-accelerated screen lock for Hyprland";
+    homepage = "https://github.com/nomadxxxx/mpvlock"; 
+    description = "A gpu-accelerated screen lock based on Hyprland’s hyprlock with video and audio support";
     license = lib.licenses.bsd3;
     platforms = lib.platforms.linux;
-    mainProgram = "hyprlock";
+    mainProgram = "mpvlock";
   };
 }

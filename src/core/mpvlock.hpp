@@ -27,10 +27,10 @@ struct SDMABUFModifier {
     uint64_t mod    = 0;
 };
 
-class CHyprlock {
+class CMpvlock {
   public:
-    CHyprlock(const std::string& wlDisplay, const bool immediate, const bool immediateRender);
-    ~CHyprlock();
+    CMpvlock(const std::string& wlDisplay, const bool immediate, const bool immediateRender);
+    ~CMpvlock();
 
     void                             run();
 
@@ -54,10 +54,7 @@ class CHyprlock {
     void                             startKeyRepeat(xkb_keysym_t sym);
     void                             repeatKey(xkb_keysym_t sym);
     void                             handleKeySym(xkb_keysym_t sym, bool compose);
-    void                             onPasswordCheckTimer();
     void                             clearPasswordBuffer();
-    bool                             passwordCheckWaiting();
-    std::optional<std::string>       passwordLastFailReason();
 
     void                             renderOutput(const std::string& stringPort);
     void                             renderAllOutputs();
@@ -164,4 +161,4 @@ class CHyprlock {
     std::vector<uint32_t>                m_vPressedKeys;
 };
 
-inline UP<CHyprlock> g_pHyprlock;
+inline UP<CMpvlock> g_pMpvlock;

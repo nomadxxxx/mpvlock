@@ -1,7 +1,7 @@
 #include "Background.hpp"
 #include "../Renderer.hpp"
 #include "../AsyncResourceGatherer.hpp"
-#include "../../core/hyprlock.hpp"
+#include "../../core/mpvlock.hpp"
 #include "../../helpers/Log.hpp"
 #include "../../helpers/MiscFunctions.hpp"
 #include <chrono>
@@ -41,6 +41,38 @@ int CBackground::getZindex() const {
 
 bool CBackground::isVideoBackground() const {
     return m_bIsVideoBackground;
+}
+
+void CBackground::onTimer(std::shared_ptr<CTimer> timer, void* data) {
+    WP<CBackground> ref = *static_cast<WP<CBackground>*>(data);
+    if (auto PBACKGROUND = ref.lock(); PBACKGROUND) {
+        if (timer == PBACKGROUND->reloadTimer) {
+            PBACKGROUND->onReloadTimerUpdate();
+            PBACKGROUND->plantReloadTimer();
+        } else if (timer == PBACKGROUND->fadeAnimation.fadeTimer) {
+            auto now = std::chrono::system_clock::now();
+            auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - PBACKGROUND->fadeAnimation.startTime).count();
+            float progress = static_cast<float>(elapsedMs) / PBACKGROUND->fadeAnimation.durationMs;
+
+            if (progress >= 1.0f) {
+                // Fading complete
+                PBACKGROUND->fadeAnimation.opacity = PBACKGROUND->fadeAnimation.fadingIn ? 1.0f : 0.0f;
+                PBACKGROUND->fadeAnimation.fadeTimer->cancel();
+                PBACKGROUND->fadeAnimation.fadeTimer.reset();
+                PBACKGROUND->fadeAnimation.fadingIn = !PBACKGROUND->fadeAnimation.fadingIn;
+                Debug::log(TRACE, "CBackground fading complete: opacity={}", PBACKGROUND->fadeAnimation.opacity);
+            } else {
+                // Update opacity
+                PBACKGROUND->fadeAnimation.opacity = PBACKGROUND->fadeAnimation.fadingIn ? progress : 1.0f - progress;
+                Debug::log(TRACE, "CBackground fading: progress={}, opacity={}", progress, PBACKGROUND->fadeAnimation.opacity);
+            }
+
+            // Trigger a render
+            g_pMpvlock->renderOutput(PBACKGROUND->outputPort);
+        } else if (timer == PBACKGROUND->fade->crossFadeTimer) {
+            PBACKGROUND->onCrossFadeTimerUpdate();
+        }
+    }
 }
 
 void CBackground::configure(const std::unordered_map<std::string, std::any>& props, const SP<COutput>& pOutput) {
@@ -263,6 +295,38 @@ void CBackground::configure(const std::unordered_map<std::string, std::any>& pro
                 Debug::log(ERR, "Failed to parse fallback_path: {}", e.what());
             }
         }
+
+        // Parse new fading options
+        fadeAnimation.enabled = false;
+        if (props.contains("fade")) {
+            auto val = props.at("fade");
+            if (val.type() == typeid(Hyprlang::INT)) {
+                fadeAnimation.enabled = std::any_cast<Hyprlang::INT>(val) != 0;
+            } else {
+                Debug::log(WARN, "Background fade has unexpected type, defaulting to disabled");
+            }
+        }
+
+        fadeAnimation.durationMs = 1000;
+        if (props.contains("fade_duration")) {
+            auto val = props.at("fade_duration");
+            if (val.type() == typeid(Hyprlang::INT)) {
+                fadeAnimation.durationMs = std::any_cast<Hyprlang::INT>(val);
+                if (fadeAnimation.durationMs <= 0) {
+                    Debug::log(WARN, "Background fade_duration invalid value: {}, defaulting to 1000ms", fadeAnimation.durationMs);
+                    fadeAnimation.durationMs = 1000;
+                }
+            } else if (val.type() == typeid(Hyprlang::FLOAT)) {
+                fadeAnimation.durationMs = static_cast<uint64_t>(std::any_cast<Hyprlang::FLOAT>(val));
+                if (fadeAnimation.durationMs <= 0) {
+                    Debug::log(WARN, "Background fade_duration invalid value: {}, defaulting to 1000ms", fadeAnimation.durationMs);
+                    fadeAnimation.durationMs = 1000;
+                }
+            } else {
+                Debug::log(WARN, "Background fade_duration has unexpected type, defaulting to 1000ms");
+            }
+        }
+
         isScreenshot = path == "screenshot";
         monitor = pOutput->stringPort;
         viewport = pOutput->getViewport();
@@ -373,7 +437,7 @@ void CBackground::configure(const std::unordered_map<std::string, std::any>& pro
                 resourceID = "";
             }
 
-            if (isScreenshot && !resourceID.empty() && g_pHyprlock->getScreencopy()) {
+            if (isScreenshot && !resourceID.empty() && g_pMpvlock->getScreencopy()) {
                 if (g_pRenderer->asyncResourceGatherer->gathered) {
                     if (!g_pRenderer->asyncResourceGatherer->getAssetByID(resourceID)) {
                         Debug::log(ERR, "Screencopy resource {} not found", resourceID);
@@ -394,6 +458,11 @@ void CBackground::configure(const std::unordered_map<std::string, std::any>& pro
             }
             plantReloadTimer();
         }
+
+        // Start fading if enabled
+        if (fadeAnimation.enabled) {
+            startFade();
+        }
     } catch (const std::exception& e) {
         Debug::log(ERR, "Exception in CBackground::configure: {}", e.what());
         m_bIsVideoBackground = false;
@@ -413,6 +482,10 @@ void CBackground::reset() {
         }
         fade.reset();
     }
+    if (fadeAnimation.fadeTimer) {
+        fadeAnimation.fadeTimer->cancel();
+        fadeAnimation.fadeTimer.reset();
+    }
 }
 
 void CBackground::renderRect(CHyprColor color) {
@@ -428,11 +501,13 @@ bool CBackground::draw(const SRenderData& data) {
         return false;
     }
 
+    float adjustedOpacity = data.opacity * fadeAnimation.opacity;
+
     if (resourceID.empty()) {
         CHyprColor col = color;
-        col.a *= data.opacity;
+        col.a *= adjustedOpacity;
         renderRect(col);
-        return data.opacity < 1.0;
+        return adjustedOpacity < 1.0;
     }
 
     if (!asset)
@@ -440,7 +515,7 @@ bool CBackground::draw(const SRenderData& data) {
 
     if (!asset) {
         CHyprColor col = color;
-        col.a *= data.opacity;
+        col.a *= adjustedOpacity;
         renderRect(col);
         return true;
     }
@@ -513,25 +588,25 @@ bool CBackground::draw(const SRenderData& data) {
     else
         texbox.x = -(texbox.w - viewport.x) / 2.f;
     texbox.round();
-    g_pRenderer->renderTexture(texbox, *tex, data.opacity, 0, HYPRUTILS_TRANSFORM_FLIPPED_180);
+    g_pRenderer->renderTexture(texbox, *tex, adjustedOpacity, 0, HYPRUTILS_TRANSFORM_FLIPPED_180);
 
-    return fade || data.opacity < 1.0;
+    return fade || adjustedOpacity < 1.0;
 }
 
 void CBackground::plantReloadTimer() {
     if (reloadTime == 0)
-        reloadTimer = g_pHyprlock->addTimer(std::chrono::hours(1),
-            [REF = m_self](std::shared_ptr<CTimer>, void*) { REF.lock()->onReloadTimerUpdate(); }, nullptr, true);
+        reloadTimer = g_pMpvlock->addTimer(std::chrono::hours(1),
+            [REF = m_self](std::shared_ptr<CTimer> timer, void*) { REF.lock()->onTimer(timer, (void*)&REF); }, nullptr, true);
     else if (reloadTime > -1)
-        reloadTimer = g_pHyprlock->addTimer(std::chrono::seconds(reloadTime),
-            [REF = m_self](std::shared_ptr<CTimer>, void*) { REF.lock()->onReloadTimerUpdate(); }, nullptr, true);
+        reloadTimer = g_pMpvlock->addTimer(std::chrono::seconds(reloadTime),
+            [REF = m_self](std::shared_ptr<CTimer> timer, void*) { REF.lock()->onTimer(timer, (void*)&REF); }, nullptr, true);
 }
 
 void CBackground::onReloadTimerUpdate() {
     const std::string OLDPATH = path;
 
     if (!reloadCommand.empty()) {
-        path = g_pHyprlock->spawnSync(reloadCommand);
+        path = g_pMpvlock->spawnSync(reloadCommand);
         if (path.ends_with('\n'))
             path.pop_back();
         if (path.starts_with("file://"))
@@ -581,7 +656,7 @@ void CBackground::onCrossFadeTimerUpdate() {
     pendingAsset = nullptr;
     firstRender = true;
 
-    g_pHyprlock->renderOutput(outputPort);
+    g_pMpvlock->renderOutput(outputPort);
 }
 
 void CBackground::startCrossFadeOrUpdateRender() {
@@ -604,17 +679,29 @@ void CBackground::startCrossFadeOrUpdateRender() {
                 fade->start = std::chrono::system_clock::now();
                 fade->a = 0;
                 fade->crossFadeTimer =
-                    g_pHyprlock->addTimer(std::chrono::milliseconds((int)(1000.0 * crossFadeTime)),
-                        [REF = m_self](std::shared_ptr<CTimer>, void*) { REF.lock()->onCrossFadeTimerUpdate(); }, nullptr, true);
+                    g_pMpvlock->addTimer(std::chrono::milliseconds((int)(1000.0 * crossFadeTime)),
+                        [REF = m_self](std::shared_ptr<CTimer> timer, void*) { REF.lock()->onTimer(timer, (void*)&REF); }, nullptr, true);
             } else {
                 onCrossFadeTimerUpdate();
             }
         }
     } else if (!pendingResourceID.empty()) {
         Debug::log(WARN, "Asset {} not available after the asyncResourceGatherer's callback!", pendingResourceID);
-        g_pHyprlock->addTimer(std::chrono::milliseconds(100),
-            [REF = m_self](std::shared_ptr<CTimer>, void*) { REF.lock()->startCrossFadeOrUpdateRender(); }, nullptr, true);
+        g_pMpvlock->addTimer(std::chrono::milliseconds(100),
+            [REF = m_self](std::shared_ptr<CTimer> timer, void*) { REF.lock()->startCrossFadeOrUpdateRender(); }, nullptr, true);
     }
 
-    g_pHyprlock->renderOutput(outputPort);
+    g_pMpvlock->renderOutput(outputPort);
+}
+
+void CBackground::startFade() {
+    if (!fadeAnimation.enabled || fadeAnimation.fadeTimer) {
+        return;
+    }
+
+    fadeAnimation.startTime = std::chrono::system_clock::now();
+    fadeAnimation.fadeTimer = g_pMpvlock->addTimer(std::chrono::milliseconds(16),
+                                                   [REF = m_self](std::shared_ptr<CTimer> timer, void*) { REF.lock()->onTimer(timer, (void*)&REF); },
+                                                   nullptr, false);
+    Debug::log(LOG, "CBackground starting fade: fadingIn={}, duration={}ms", fadeAnimation.fadingIn, fadeAnimation.durationMs);
 }

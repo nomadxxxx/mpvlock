@@ -24,6 +24,7 @@ class CLabel : public IWidget {
     virtual std::string type() const override;
     virtual void setZindex(int zindex) override;
     virtual int getZindex() const override;
+    virtual void onTimer(std::shared_ptr<CTimer> timer, void* data) override;
 
     void reset();
     void renderUpdate();
@@ -55,4 +56,16 @@ class CLabel : public IWidget {
 
     CShadowable shadow;
     bool updateShadow = true;
+
+    // Fading functionality
+    struct {
+        float opacity = 1.0f;
+        bool enabled = false;
+        bool fadingIn = true;
+        uint64_t durationMs = 1000;
+        std::shared_ptr<CTimer> fadeTimer = nullptr;
+        std::chrono::system_clock::time_point startTime;
+    } fade;
+
+    void startFade();
 };

@@ -1,5 +1,5 @@
 #include "Pam.hpp"
-#include "../core/hyprlock.hpp"
+#include "../core/mpvlock.hpp"  // Updated from hyprlock.hpp
 #include "../helpers/Log.hpp"
 #include "../config/ConfigManager.hpp"
 
@@ -28,7 +28,7 @@ int conv(int num_msg, const struct pam_message** msg, struct pam_response** resp
                 Debug::log(LOG, "PAM_PROMPT: {}", PROMPT);
 
                 if (PROMPTCHANGED)
-                    g_pHyprlock->enqueueForceUpdateTimers();
+                    g_pMpvlock->enqueueForceUpdateTimers();  // Updated from g_pHyprlock
 
                 // Some pam configurations ask for the password twice for whatever reason (Fedora su for example)
                 // When the prompt is the same as the last one, I guess our answer can be the same.
@@ -38,7 +38,7 @@ int conv(int num_msg, const struct pam_message** msg, struct pam_response** resp
                 }
 
                 // Needed for unlocks via SIGUSR1
-                if (g_pHyprlock->isUnlocked())
+                if (g_pMpvlock->isUnlocked())  // Updated from g_pHyprlock
                     return PAM_CONV_ERR;
 
                 pamReply[i].resp = strdup(CONVERSATIONSTATE->input.c_str());
@@ -86,13 +86,13 @@ void CPam::init() {
             waitForInput();
 
             // For grace or SIGUSR1 unlocks
-            if (g_pHyprlock->isUnlocked())
+            if (g_pMpvlock->isUnlocked())  // Updated from g_pHyprlock
                 return;
 
             const auto AUTHENTICATED = auth();
 
             // For SIGUSR1 unlocks
-            if (g_pHyprlock->isUnlocked())
+            if (g_pMpvlock->isUnlocked())  // Updated from g_pHyprlock
                 return;
 
             if (!AUTHENTICATED)
@@ -143,7 +143,7 @@ void CPam::waitForInput() {
     m_bBlockInput                          = false;
     m_sConversationState.waitingForPamAuth = false;
     m_sConversationState.inputRequested    = true;
-    m_sConversationState.inputSubmittedCondition.wait(lk, [this] { return !m_sConversationState.inputRequested || g_pHyprlock->m_bTerminate; });
+    m_sConversationState.inputSubmittedCondition.wait(lk, [this] { return !m_sConversationState.inputRequested || g_pMpvlock->m_bTerminate; });  // Updated from g_pHyprlock
     m_bBlockInput = true;
 }
 

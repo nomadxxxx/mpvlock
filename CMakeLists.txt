@@ -1,11 +1,11 @@
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 3.10)
 
-# Set default version if not provided
-set(VERSION "0.7.0" CACHE STRING "Project version")
+file(READ "${CMAKE_SOURCE_DIR}/VERSION" VER_RAW)
+string(STRIP ${VER_RAW} VERSION)
 
 project(
   mpvlock
-  DESCRIPTION "A screen locking utility based on hyprlock that supports video and audio"
+  DESCRIPTION "A screen locking utility based on hyprlock with video/audio via mpvpaper"
   VERSION ${VERSION})
 
 set(CMAKE_MESSAGE_LOG_LEVEL "STATUS")
@@ -39,6 +39,7 @@ else()
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMAND git rev-parse --short HEAD
     RESULT_VARIABLE GIT_RESULT
+    ERROR_QUIET
   )
   if(GIT_RESULT EQUAL 0)
     add_compile_definitions(MPVLOCK_COMMIT="${GIT_SHORT_HASH}")
@@ -50,18 +51,22 @@ endif()
 if (DEFINED MPVLOCK_VERSION_COMMIT)
   add_compile_definitions(MPVLOCK_VERSION_COMMIT="${MPVLOCK_VERSION_COMMIT}")
 else()
-  execute_process(
-    OUTPUT_VARIABLE GIT_TAG_SHORT_HASH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    COMMAND git rev-parse --short v${VERSION}
-    RESULT_VARIABLE GIT_TAG_RESULT
-  )
-  if(GIT_TAG_RESULT EQUAL 0)
-    add_compile_definitions(MPVLOCK_VERSION_COMMIT="${GIT_TAG_SHORT_HASH}")
+  if (EXISTS "${CMAKE_SOURCE_DIR}/.git")
+    execute_process(
+      COMMAND git rev-parse --short v${VERSION}
+      OUTPUT_VARIABLE GIT_TAG_SHORT_HASH
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      RESULT_VARIABLE GIT_TAG_RESULT
+      ERROR_QUIET
+    )
+    if(GIT_TAG_RESULT EQUAL 0)
+      add_compile_definitions(MPVLOCK_VERSION_COMMIT="${GIT_TAG_SHORT_HASH}")
+    else()
+      add_compile_definitions(MPVLOCK_VERSION_COMMIT="unknown")
+    endif()
   else()
     add_compile_definitions(MPVLOCK_VERSION_COMMIT="unknown")
-    message(WARNING "No git tag v${VERSION} found, using fallback MPVLOCK_VERSION_COMMIT=unknown")
   endif()
 endif()
 
@@ -97,9 +102,40 @@ pkg_check_modules(
   gbm
   hyprutils>=0.5.0
   sdbus-c++>=2.0.0
-  hyprgraphics)
+  hyprgraphics
+)
 
-file(GLOB_RECURSE SRCFILES CONFIGURE_DEPENDS "src/*.cpp")
+set(SRCFILES
+    src/main.cpp
+    src/core/Egl.cpp
+    src/core/LockSurface.cpp
+    src/core/Timer.cpp
+    src/core/mpvlock.cpp
+    src/core/CursorShape.cpp
+    src/core/Output.cpp
+    src/core/Seat.cpp
+    src/core/AnimationManager.cpp
+    src/config/ConfigManager.cpp
+    src/renderer/AsyncResourceGatherer.cpp
+    src/renderer/Shader.cpp
+    src/renderer/widgets/Shape.cpp
+    src/renderer/widgets/IWidget.cpp
+    src/renderer/widgets/Image.cpp
+    src/renderer/widgets/Background.cpp
+    src/renderer/widgets/PasswordInputField.cpp
+    src/renderer/widgets/Label.cpp
+    src/renderer/widgets/Shadowable.cpp
+    src/renderer/Screencopy.cpp
+    src/renderer/Renderer.cpp
+    src/renderer/Framebuffer.cpp
+    src/renderer/Texture.cpp
+    src/helpers/MiscFunctions.cpp
+    src/helpers/Math.cpp
+    src/helpers/Color.cpp
+    src/auth/Pam.cpp
+    src/auth/Fingerprint.cpp
+    src/auth/Auth.cpp
+)
 add_executable(mpvlock ${SRCFILES})
 target_link_libraries(mpvlock PRIVATE pam rt Threads::Threads PkgConfig::deps
                                      OpenGL::EGL OpenGL::GLES3)
@@ -139,15 +175,15 @@ make_directory(${CMAKE_SOURCE_DIR}/protocols)
 
 protocolwayland()
 
-protocolnew("stable/xdg-shell" "xdg-shell" false)
 protocolnew("protocols" "wlr-screencopy-unstable-v1" true)
+protocolnew("protocols" "wlr-layer-shell-unstable-v1" true)
 protocolnew("staging/ext-session-lock" "ext-session-lock-v1" false)
 protocolnew("stable/linux-dmabuf" "linux-dmabuf-v1" false)
 protocolnew("staging/fractional-scale" "fractional-scale-v1" false)
 protocolnew("stable/viewporter" "viewporter" false)
 protocolnew("staging/cursor-shape" "cursor-shape-v1" false)
 protocolnew("stable/tablet" "tablet-v2" false)
-protocolnew("protocols" "wlr-layer-shell-unstable-v1" true)
+protocolnew("stable/xdg-shell" "xdg-shell" false)  # For xdg_popup_interface
 
 # Installation
 install(TARGETS mpvlock)

@@ -34,9 +34,10 @@ class CBackground : public IWidget {
     virtual std::string type() const override;
     virtual void setZindex(int zindex) override;
     virtual int getZindex() const override;
-    virtual bool isVideoBackground() const; // Method for video background check
+    virtual void onTimer(std::shared_ptr<CTimer> timer, void* data) override;
+    virtual bool isVideoBackground() const;
 
-    void         reset(); // Unload assets, remove timers, etc.
+    void         reset();
 
     void         renderRect(CHyprColor color);
 
@@ -44,18 +45,17 @@ class CBackground : public IWidget {
     void         onCrossFadeTimerUpdate();
     void         plantReloadTimer();
     void         startCrossFadeOrUpdateRender();
+    void         startFade(); // Add method to start the new fading animation
 
-    // Members for video background support
-    bool         m_bIsVideoBackground = false; // Renamed to avoid conflict
+    bool         m_bIsVideoBackground = false;
     std::string  videoPath;
-    std::string  monitor; // Store monitor name for mpvpaper
-    std::string  fallbackPath; // Added for fallback image if video fails
+    std::string  monitor;
+    std::string  fallbackPath;
 
   private:
-    int                                     m_iZindex = -1; // Default for background
+    int                                     m_iZindex = -1;
     WP<CBackground>                         m_self;
 
-    // if needed
     CFramebuffer                            blurredFB;
 
     int                                     blurSize          = 10;
@@ -82,11 +82,21 @@ class CBackground : public IWidget {
     SPreloadedAsset*                        pendingAsset = nullptr;
     bool                                    firstRender  = true;
 
-    UP<SFade>                               fade;
+    UP<SFade>                               fade; // Existing crossfade structure
 
     int                                     reloadTime = -1;
     std::string                             reloadCommand;
     CAsyncResourceGatherer::SPreloadRequest request;
     std::shared_ptr<CTimer>                 reloadTimer;
     std::filesystem::file_time_type         modificationTime;
+
+    // New fading functionality (distinct from crossfade)
+    struct {
+        float opacity = 1.0f;
+        bool enabled = false;
+        bool fadingIn = true;
+        uint64_t durationMs = 1000;
+        std::shared_ptr<CTimer> fadeTimer = nullptr;
+        std::chrono::system_clock::time_point startTime;
+    } fadeAnimation;
 };

@@ -1,6 +1,6 @@
 #include "Image.hpp"
 #include "../Renderer.hpp"
-#include "../../core/hyprlock.hpp"
+#include "../../core/mpvlock.hpp"
 #include "../../helpers/Log.hpp"
 #include "../../helpers/MiscFunctions.hpp"
 #include "../../config/ConfigDataValues.hpp"
@@ -19,10 +19,42 @@ std::string CImage::type() const {
     return "image";
 }
 
-static void onTimer(WP<CImage> ref) {
+void CImage::setZindex(int zindex) {
+    this->zindex = zindex;
+}
+
+int CImage::getZindex() const {
+    return zindex;
+}
+
+void CImage::onTimer(std::shared_ptr<CTimer> timer, void* data) {
+    WP<CImage> ref = *static_cast<WP<CImage>*>(data);
     if (auto PIMAGE = ref.lock(); PIMAGE) {
-        PIMAGE->onTimerUpdate();
-        PIMAGE->plantTimer();
+        // Check if this timer is for reloading or fading
+        if (timer == PIMAGE->imageTimer) {
+            PIMAGE->onTimerUpdate();
+            PIMAGE->plantTimer();
+        } else if (timer == PIMAGE->fade.fadeTimer) {
+            auto now = std::chrono::system_clock::now();
+            auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - PIMAGE->fade.startTime).count();
+            float progress = static_cast<float>(elapsedMs) / PIMAGE->fade.durationMs;
+
+            if (progress >= 1.0f) {
+                // Fading complete
+                PIMAGE->fade.opacity = PIMAGE->fade.fadingIn ? 1.0f : 0.0f;
+                PIMAGE->fade.fadeTimer->cancel();
+                PIMAGE->fade.fadeTimer.reset();
+                PIMAGE->fade.fadingIn = !PIMAGE->fade.fadingIn; // Toggle direction for next fade
+                Debug::log(TRACE, "CImage fading complete: opacity={}", PIMAGE->fade.opacity);
+            } else {
+                // Update opacity
+                PIMAGE->fade.opacity = PIMAGE->fade.fadingIn ? progress : 1.0f - progress;
+                Debug::log(TRACE, "CImage fading: progress={}, opacity={}", progress, PIMAGE->fade.opacity);
+            }
+
+            // Trigger a render to reflect the new opacity
+            g_pMpvlock->renderOutput(PIMAGE->output->stringPort);
+        }
     }
 }
 
@@ -35,7 +67,7 @@ void CImage::onTimerUpdate() {
     const std::string OLDPATH = path;
 
     if (!reloadCommand.empty()) {
-        path = g_pHyprlock->spawnSync(reloadCommand);
+        path = g_pMpvlock->spawnSync(reloadCommand);
         if (path.ends_with('\n'))
             path.pop_back();
         if (path.starts_with("file://"))
@@ -69,15 +101,31 @@ void CImage::onTimerUpdate() {
 
 void CImage::plantTimer() {
     if (reloadTime == 0) {
-        imageTimer = g_pHyprlock->addTimer(std::chrono::hours(1), [REF = m_self](auto, auto) { onTimer(REF); }, nullptr, true);
-    } else if (reloadTime > 0)
-        imageTimer = g_pHyprlock->addTimer(std::chrono::seconds(reloadTime), [REF = m_self](auto, auto) { onTimer(REF); }, nullptr, false);
+        imageTimer = g_pMpvlock->addTimer(std::chrono::hours(1),
+                                          [REF = m_self](std::shared_ptr<CTimer> timer, void*) { REF.lock()->onTimer(timer, (void*)&REF); }, nullptr, true);
+    } else if (reloadTime > 0) {
+        imageTimer = g_pMpvlock->addTimer(std::chrono::seconds(reloadTime),
+                                          [REF = m_self](std::shared_ptr<CTimer> timer, void*) { REF.lock()->onTimer(timer, (void*)&REF); }, nullptr, false);
+    }
+}
+
+void CImage::startFade() {
+    if (!fade.enabled || fade.fadeTimer) {
+        return; // Fading not enabled or already in progress
+    }
+
+    fade.startTime = std::chrono::system_clock::now();
+    fade.fadeTimer = g_pMpvlock->addTimer(std::chrono::milliseconds(16), // ~60 FPS
+                                          [REF = m_self](std::shared_ptr<CTimer> timer, void*) { REF.lock()->onTimer(timer, (void*)&REF); },
+                                          nullptr, false);
+    Debug::log(LOG, "CImage starting fade: fadingIn={}, duration={}ms", fade.fadingIn, fade.durationMs);
 }
 
 void CImage::configure(const std::unordered_map<std::string, std::any>& props, const SP<COutput>& pOutput) {
     reset();
 
     viewport = pOutput->getViewport();
+    output = pOutput.get();
 
     shadow.configure(m_self.lock(), props, viewport);
 
@@ -93,10 +141,54 @@ void CImage::configure(const std::unordered_map<std::string, std::any>& props, c
         path = std::any_cast<Hyprlang::STRING>(props.at("path"));
         reloadTime = std::any_cast<Hyprlang::INT>(props.at("reload_time"));
         reloadCommand = std::any_cast<Hyprlang::STRING>(props.at("reload_cmd"));
+
+        if (props.contains("zindex")) {
+            try {
+                zindex = std::any_cast<Hyprlang::INT>(props.at("zindex"));
+                Debug::log(LOG, "Image configured with zindex: {}", zindex);
+            } catch (const std::exception& e) {
+                Debug::log(WARN, "Failed to parse zindex for image: {}, defaulting to 20", e.what());
+                zindex = 20;
+            }
+        } else {
+            zindex = 20;
+            Debug::log(LOG, "No zindex prop found for image, defaulting to 20");
+        }
+
+        // Parse fading options
+        fade.enabled = false;
+        if (props.contains("fade")) {
+            auto val = props.at("fade");
+            if (val.type() == typeid(Hyprlang::INT)) {
+                fade.enabled = std::any_cast<Hyprlang::INT>(val) != 0;
+            } else {
+                Debug::log(WARN, "Image fade has unexpected type, defaulting to disabled");
+            }
+        }
+
+        fade.durationMs = 1000; // Default 1 second
+        if (props.contains("fade_duration")) {
+            auto val = props.at("fade_duration");
+            if (val.type() == typeid(Hyprlang::INT)) {
+                fade.durationMs = std::any_cast<Hyprlang::INT>(val);
+                if (fade.durationMs <= 0) {
+                    Debug::log(WARN, "Image fade_duration invalid value: {}, defaulting to 1000ms", fade.durationMs);
+                    fade.durationMs = 1000;
+                }
+            } else if (val.type() == typeid(Hyprlang::FLOAT)) {
+                fade.durationMs = static_cast<uint64_t>(std::any_cast<Hyprlang::FLOAT>(val));
+                if (fade.durationMs <= 0) {
+                    Debug::log(WARN, "Image fade_duration invalid value: {}, defaulting to 1000ms", fade.durationMs);
+                    fade.durationMs = 1000;
+                }
+            } else {
+                Debug::log(WARN, "Image fade_duration has unexpected type, defaulting to 1000ms");
+            }
+        }
     } catch (const std::bad_any_cast& e) {
         RASSERT(false, "Failed to construct CImage: {}", e.what());
     } catch (const std::out_of_range& e) {
-        RASSERT(false, "Missing propperty for CImage: {}", e.what());
+        RASSERT(false, "Missing property for CImage: {}", e.what());
     }
 
     resourceID = "image:" + path;
@@ -108,6 +200,11 @@ void CImage::configure(const std::unordered_map<std::string, std::any>& props, c
         } catch (std::exception& e) { Debug::log(ERR, "{}", e.what()); }
         plantTimer();
     }
+
+    // Start fading if enabled
+    if (fade.enabled) {
+        startFade();
+    }
 }
 
 void CImage::reset() {
@@ -115,7 +212,11 @@ void CImage::reset() {
         imageTimer->cancel();
         imageTimer.reset();
     }
-    if (g_pHyprlock->m_bTerminate)
+    if (fade.fadeTimer) {
+        fade.fadeTimer->cancel();
+        fade.fadeTimer.reset();
+    }
+    if (g_pMpvlock->m_bTerminate)
         return;
     imageFB.release();
     if (asset && reloadTime > -1)
@@ -168,7 +269,7 @@ bool CImage::draw(const SRenderData& data) {
             g_pRenderer->renderBorder(borderBox, color, border, BORDERROUND, 1.0);
 
         texbox.round();
-        g_pRenderer->renderTexture(texbox, asset->texture, 1.0, ROUND, HYPRUTILS_TRANSFORM_NORMAL);
+        g_pRenderer->renderTexture(texbox, asset->texture, 1.0, ROUND);
         g_pRenderer->popFb();
     }
 
@@ -180,7 +281,9 @@ bool CImage::draw(const SRenderData& data) {
         shadow.markShadowDirty();
     }
 
-    shadow.draw(data);
+    SRenderData shadowData = data;
+    shadowData.opacity *= fade.opacity; // Adjust opacity for shadow
+    shadow.draw(shadowData); // Render shadow with adjusted opacity
 
     const auto TEXPOS = posFromHVAlign(viewport, tex->m_vSize, pos, halign, valign, angle);
     texbox.x = TEXPOS.x;
@@ -188,9 +291,10 @@ bool CImage::draw(const SRenderData& data) {
 
     texbox.round();
     texbox.rot = angle;
-    g_pRenderer->renderTexture(texbox, *tex, data.opacity, 0, HYPRUTILS_TRANSFORM_FLIPPED_180);
+    float adjustedOpacity = data.opacity * fade.opacity;
+    g_pRenderer->renderTexture(texbox, *tex, adjustedOpacity, 0);
 
-    return data.opacity < 1.0;
+    return adjustedOpacity < 1.0;
 }
 
 void CImage::renderUpdate() {
@@ -209,11 +313,7 @@ void CImage::renderUpdate() {
     } else if (!pendingResourceID.empty()) {
         Debug::log(WARN, "Asset {} not available after the asyncResourceGatherer's callback!", pendingResourceID);
         pendingResourceID = "";
-    } else if (!pendingResourceID.empty()) {
-        Debug::log(WARN, "Asset {} not available after the asyncResourceGatherer's callback!", pendingResourceID);
-
-        g_pHyprlock->addTimer(std::chrono::milliseconds(100), [REF = m_self](auto, auto) { onAssetCallback(REF); }, nullptr);
     }
 
-    g_pHyprlock->renderOutput(output->stringPort);
+    g_pMpvlock->renderOutput(output->stringPort);
 }

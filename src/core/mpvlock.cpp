@@ -1,4 +1,4 @@
-#include "hyprlock.hpp"
+#include "mpvlock.hpp"  // Updated from hyprlock.hpp
 #include "AnimationManager.hpp"
 #include "../helpers/Log.hpp"
 #include "../config/ConfigManager.hpp"
@@ -35,7 +35,7 @@ static void setMallocThreshold() {
 #endif
 }
 
-CHyprlock::CHyprlock(const std::string& wlDisplay, const bool immediate, const bool immediateRender) {
+CMpvlock::CMpvlock(const std::string& wlDisplay, const bool immediate, const bool immediateRender) {  // Updated from CHyprlock
     setMallocThreshold();
 
     m_sWaylandState.display = wl_display_connect(wlDisplay.empty() ? nullptr : wlDisplay.c_str());
@@ -57,7 +57,7 @@ CHyprlock::CHyprlock(const std::string& wlDisplay, const bool immediate, const b
     m_sCurrentDesktop         = SZCURRENTD;
 }
 
-CHyprlock::~CHyprlock() {
+CMpvlock::~CMpvlock() {  // Updated from CHyprlock
     if (dma.gbmDevice)
         gbm_device_destroy(dma.gbmDevice);
 }
@@ -73,13 +73,13 @@ static void registerSignalAction(int sig, void (*handler)(int), int sa_flags = 0
 static void handleUnlockSignal(int sig) {
     if (sig == SIGUSR1) {
         Debug::log(LOG, "Unlocking with a SIGUSR1");
-        g_pHyprlock->releaseSessionLock();
+        g_pMpvlock->releaseSessionLock();  // Updated from g_pHyprlock
     }
 }
 
 static void handleForceUpdateSignal(int sig) {
     if (sig == SIGUSR2) {
-        for (auto& t : g_pHyprlock->getTimers()) {
+        for (auto& t : g_pMpvlock->getTimers()) {  // Updated from g_pHyprlock
             if (t->canForceUpdate()) {
                 t->call(t);
                 t->cancel();
@@ -113,7 +113,7 @@ static char* gbm_find_render_node(drmDevice* device) {
     return render_node;
 }
 
-gbm_device* CHyprlock::createGBMDevice(drmDevice* dev) {
+gbm_device* CMpvlock::createGBMDevice(drmDevice* dev) {  // Updated from CHyprlock
     char* renderNode = gbm_find_render_node(dev);
 
     if (!renderNode) {
@@ -134,7 +134,7 @@ gbm_device* CHyprlock::createGBMDevice(drmDevice* dev) {
     return gbm_create_device(fd);
 }
 
-void CHyprlock::addDmabufListener() {
+void CMpvlock::addDmabufListener() {  // Updated from CHyprlock
     dma.linuxDmabufFeedback->setTrancheDone([this](CCZwpLinuxDmabufFeedbackV1* r) {
         Debug::log(TRACE, "[core] dmabufFeedbackTrancheDone");
 
@@ -238,7 +238,7 @@ void CHyprlock::addDmabufListener() {
     });
 }
 
-void CHyprlock::run() {
+void CMpvlock::run() {  // Updated from CHyprlock
     m_sWaylandState.registry = makeShared<CCWlRegistry>((wl_proxy*)wl_display_get_registry(m_sWaylandState.display));
     m_sWaylandState.registry->setGlobal([this](CCWlRegistry* r, uint32_t name, const char* interface, uint32_t version) {
         const std::string IFACE = interface;
@@ -256,7 +256,7 @@ void CHyprlock::run() {
             addDmabufListener();
         } else if (IFACE == wl_seat_interface.name) {
             if (g_pSeatManager->registered()) {
-                Debug::log(WARN, "Hyprlock does not support multi-seat configurations. Only binding to the first seat.");
+                Debug::log(WARN, "Mpvlock does not support multi-seat configurations. Only binding to the first seat.");  // Updated from Hyprlock
                 return;
             }
 
@@ -492,7 +492,7 @@ void CHyprlock::run() {
     Debug::log(LOG, "Reached the end, exiting");
 }
 
-void CHyprlock::unlock() {
+void CMpvlock::unlock() {  // Updated from CHyprlock
     if (!m_bLocked) {
         Debug::log(WARN, "Unlock called, but not locked yet. This can happen when dpms is off during the grace period.");
         return;
@@ -506,11 +506,11 @@ void CHyprlock::unlock() {
     renderAllOutputs();
 }
 
-bool CHyprlock::isUnlocked() {
+bool CMpvlock::isUnlocked() {  // Updated from CHyprlock
     return m_bUnlockedCalled || m_bTerminate;
 }
 
-void CHyprlock::clearPasswordBuffer() {
+void CMpvlock::clearPasswordBuffer() {  // Updated from CHyprlock
     if (m_sPasswordState.passBuffer.empty())
         return;
 
@@ -519,7 +519,7 @@ void CHyprlock::clearPasswordBuffer() {
     renderAllOutputs();
 }
 
-void CHyprlock::renderOutput(const std::string& stringPort) {
+void CMpvlock::renderOutput(const std::string& stringPort) {  // Updated from CHyprlock
     const auto MON = std::ranges::find_if(m_vOutputs, [stringPort](const auto& other) { return other->stringPort == stringPort; });
 
     if (MON == m_vOutputs.end() || !*MON)
@@ -533,7 +533,7 @@ void CHyprlock::renderOutput(const std::string& stringPort) {
     PMONITOR->m_sessionLockSurface->render();
 }
 
-void CHyprlock::renderAllOutputs() {
+void CMpvlock::renderAllOutputs() {  // Updated from CHyprlock
     for (auto& o : m_vOutputs) {
         if (!o->m_sessionLockSurface)
             continue;
@@ -542,7 +542,7 @@ void CHyprlock::renderAllOutputs() {
     }
 }
 
-void CHyprlock::startKeyRepeat(xkb_keysym_t sym) {
+void CMpvlock::startKeyRepeat(xkb_keysym_t sym) {  // Updated from CHyprlock
     if (m_pKeyRepeatTimer) {
         m_pKeyRepeatTimer->cancel();
         m_pKeyRepeatTimer.reset();
@@ -554,10 +554,10 @@ void CHyprlock::startKeyRepeat(xkb_keysym_t sym) {
     if (m_iKeebRepeatDelay <= 0)
         return;
 
-    m_pKeyRepeatTimer = addTimer(std::chrono::milliseconds(m_iKeebRepeatDelay), [sym](std::shared_ptr<CTimer> self, void* data) { g_pHyprlock->repeatKey(sym); }, nullptr);
+    m_pKeyRepeatTimer = addTimer(std::chrono::milliseconds(m_iKeebRepeatDelay), [sym](std::shared_ptr<CTimer> self, void* data) { g_pMpvlock->repeatKey(sym); }, nullptr);  // Updated from g_pHyprlock
 }
 
-void CHyprlock::repeatKey(xkb_keysym_t sym) {
+void CMpvlock::repeatKey(xkb_keysym_t sym) {  // Updated from CHyprlock
     if (m_iKeebRepeatRate <= 0)
         return;
 
@@ -565,12 +565,12 @@ void CHyprlock::repeatKey(xkb_keysym_t sym) {
 
     // This condition is for backspace and delete keys, but should also be ok for other keysyms since our buffer won't be empty anyways
     if (bool CONTINUE = m_sPasswordState.passBuffer.length() > 0; CONTINUE)
-        m_pKeyRepeatTimer = addTimer(std::chrono::milliseconds(m_iKeebRepeatRate), [sym](std::shared_ptr<CTimer> self, void* data) { g_pHyprlock->repeatKey(sym); }, nullptr);
+        m_pKeyRepeatTimer = addTimer(std::chrono::milliseconds(m_iKeebRepeatRate), [sym](std::shared_ptr<CTimer> self, void* data) { g_pMpvlock->repeatKey(sym); }, nullptr);  // Updated from g_pHyprlock
 
     renderAllOutputs();
 }
 
-void CHyprlock::onKey(uint32_t key, bool down) {
+void CMpvlock::onKey(uint32_t key, bool down) {  // Updated from CHyprlock
     if (isUnlocked())
         return;
 
@@ -629,7 +629,7 @@ void CHyprlock::onKey(uint32_t key, bool down) {
     renderAllOutputs();
 }
 
-void CHyprlock::handleKeySym(xkb_keysym_t sym, bool composed) {
+void CMpvlock::handleKeySym(xkb_keysym_t sym, bool composed) {  // Updated from CHyprlock
     const auto SYM = sym;
 
     if (SYM == XKB_KEY_Escape || (m_bCtrl && (SYM == XKB_KEY_u || SYM == XKB_KEY_BackSpace))) {
@@ -668,7 +668,7 @@ void CHyprlock::handleKeySym(xkb_keysym_t sym, bool composed) {
     }
 }
 
-bool CHyprlock::acquireSessionLock() {
+bool CMpvlock::acquireSessionLock() {  // Updated from CHyprlock
     Debug::log(LOG, "Locking session");
     m_sLockState.lock = makeShared<CCExtSessionLockV1>(m_sWaylandState.sessionLock->sendLock());
     if (!m_sLockState.lock) {
@@ -700,7 +700,7 @@ bool CHyprlock::acquireSessionLock() {
     return true;
 }
 
-void CHyprlock::releaseSessionLock() {
+void CMpvlock::releaseSessionLock() {  // Updated from CHyprlock
     Debug::log(LOG, "Unlocking session");
 
     if (m_bTerminate) {
@@ -730,13 +730,13 @@ void CHyprlock::releaseSessionLock() {
     wl_display_roundtrip(m_sWaylandState.display);
 }
 
-void CHyprlock::onLockLocked() {
+void CMpvlock::onLockLocked() {  // Updated from CHyprlock
     Debug::log(LOG, "onLockLocked called");
 
     m_bLocked = true;
 }
 
-void CHyprlock::onLockFinished() {
+void CMpvlock::onLockFinished() {  // Updated from CHyprlock
     Debug::log(LOG, "onLockFinished called. Seems we got yeeten. Is another lockscreen running?");
 
     if (!m_sLockState.lock) {
@@ -756,41 +756,41 @@ void CHyprlock::onLockFinished() {
     m_bTerminate      = true;
 }
 
-SP<CCExtSessionLockManagerV1> CHyprlock::getSessionLockMgr() {
+SP<CCExtSessionLockManagerV1> CMpvlock::getSessionLockMgr() {  // Updated from CHyprlock
     return m_sWaylandState.sessionLock;
 }
 
-SP<CCExtSessionLockV1> CHyprlock::getSessionLock() {
+SP<CCExtSessionLockV1> CMpvlock::getSessionLock() {  // Updated from CHyprlock
     return m_sLockState.lock;
 }
 
-SP<CCWlCompositor> CHyprlock::getCompositor() {
+SP<CCWlCompositor> CMpvlock::getCompositor() {  // Updated from CHyprlock
     return m_sWaylandState.compositor;
 }
 
-wl_display* CHyprlock::getDisplay() {
+wl_display* CMpvlock::getDisplay() {  // Updated from CHyprlock
     return m_sWaylandState.display;
 }
 
-SP<CCWpFractionalScaleManagerV1> CHyprlock::getFractionalMgr() {
+SP<CCWpFractionalScaleManagerV1> CMpvlock::getFractionalMgr() {  // Updated from CHyprlock
     return m_sWaylandState.fractional;
 }
 
-SP<CCWpViewporter> CHyprlock::getViewporter() {
+SP<CCWpViewporter> CMpvlock::getViewporter() {  // Updated from CHyprlock
     return m_sWaylandState.viewporter;
 }
 
-size_t CHyprlock::getPasswordBufferLen() {
+size_t CMpvlock::getPasswordBufferLen() {  // Updated from CHyprlock
     return m_sPasswordState.passBuffer.length();
 }
 
-size_t CHyprlock::getPasswordBufferDisplayLen() {
+size_t CMpvlock::getPasswordBufferDisplayLen() {  // Updated from CHyprlock
     // Counts utf-8 codepoints in the buffer. A byte is counted if it does not match 0b10xxxxxx.
     return std::count_if(m_sPasswordState.passBuffer.begin(), m_sPasswordState.passBuffer.end(), [](char c) { return (c & 0xc0) != 0x80; });
 }
 
-std::shared_ptr<CTimer> CHyprlock::addTimer(const std::chrono::system_clock::duration& timeout, std::function<void(std::shared_ptr<CTimer> self, void* data)> cb_, void* data,
-                                            bool force) {
+std::shared_ptr<CTimer> CMpvlock::addTimer(const std::chrono::system_clock::duration& timeout, std::function<void(std::shared_ptr<CTimer> self, void* data)> cb_, void* data,
+                                            bool force) {  // Updated from CHyprlock
     std::lock_guard<std::mutex> lg(m_sLoopState.timersMutex);
     const auto                  T = m_vTimers.emplace_back(std::make_shared<CTimer>(timeout, cb_, data, force));
     m_sLoopState.timerEvent       = true;
@@ -798,15 +798,15 @@ std::shared_ptr<CTimer> CHyprlock::addTimer(const std::chrono::system_clock::dur
     return T;
 }
 
-std::vector<std::shared_ptr<CTimer>> CHyprlock::getTimers() {
+std::vector<std::shared_ptr<CTimer>> CMpvlock::getTimers() {  // Updated from CHyprlock
     return m_vTimers;
 }
 
-void CHyprlock::enqueueForceUpdateTimers() {
+void CMpvlock::enqueueForceUpdateTimers() {  // Updated from CHyprlock
     addTimer(
         std::chrono::milliseconds(1),
         [](std::shared_ptr<CTimer> self, void* data) {
-            for (auto& t : g_pHyprlock->getTimers()) {
+            for (auto& t : g_pMpvlock->getTimers()) {  // Updated from g_pHyprlock
                 if (t->canForceUpdate()) {
                     t->call(t);
                     t->cancel();
@@ -816,7 +816,7 @@ void CHyprlock::enqueueForceUpdateTimers() {
         nullptr, false);
 }
 
-std::string CHyprlock::spawnSync(const std::string& cmd) {
+std::string CMpvlock::spawnSync(const std::string& cmd) {  // Updated from CHyprlock
     CProcess proc("/bin/sh", {"-c", cmd});
     if (!proc.runSync()) {
         Debug::log(ERR, "Failed to run \"{}\"", cmd);
@@ -829,10 +829,10 @@ std::string CHyprlock::spawnSync(const std::string& cmd) {
     return proc.stdOut();
 }
 
-SP<CCZwlrScreencopyManagerV1> CHyprlock::getScreencopy() {
+SP<CCZwlrScreencopyManagerV1> CMpvlock::getScreencopy() {  // Updated from CHyprlock
     return m_sWaylandState.screencopy;
 }
 
-SP<CCWlShm> CHyprlock::getShm() {
+SP<CCWlShm> CMpvlock::getShm() {  // Updated from CHyprlock
     return m_sWaylandState.shm;
 }

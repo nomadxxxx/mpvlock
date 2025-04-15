@@ -1,5 +1,5 @@
 {
-  description = "Hyprland's GPU-accelerated screen locking utility";
+  description = "A screen locking utility based on hyprlock that supports video and audio";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -49,13 +49,13 @@
     overlays = import ./nix/overlays.nix {inherit inputs lib self;};
 
     packages = eachSystem (system: {
-      default = self.packages.${system}.hyprlock;
-      inherit (pkgsFor.${system}) hyprlock;
+      default = self.packages.${system}.mpvlock;
+      inherit (pkgsFor.${system}) mpvlock;
     });
 
     homeManagerModules = {
-      default = self.homeManagerModules.hyprlock;
-      hyprlock = builtins.throw "hyprlock: the flake HM module has been removed. Use the module from Home Manager upstream.";
+      default = self.homeManagerModules.mpvlock;
+      mpvlock = builtins.throw "mpvlock: the flake HM module has been removed. Use the module from Home Manager upstream.";
     };
 
     checks = eachSystem (system: self.packages.${system});

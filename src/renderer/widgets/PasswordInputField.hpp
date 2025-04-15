@@ -26,6 +26,7 @@ class CPasswordInputField : public IWidget {
     virtual std::string type() const override; // Added for layered rendering
     virtual void setZindex(int zindex) override;
     virtual int getZindex() const override;
+    virtual void onTimer(std::shared_ptr<CTimer> timer, void* data) override; // Add this declaration
 
     void reset();
     void onFadeOutTimer();
@@ -42,6 +43,7 @@ class CPasswordInputField : public IWidget {
     void updateInputState();
     void updateColors();
 
+    bool m_bDisplayFailText = false; // Added for failure text display
     bool firstRender = true;
     bool redrawShadow = false;
     bool checkWaiting = false;

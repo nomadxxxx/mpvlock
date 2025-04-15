@@ -1,6 +1,6 @@
 #include "IWidget.hpp"
 #include "../../helpers/Log.hpp"
-#include "../../core/hyprlock.hpp"
+#include "../../core/mpvlock.hpp"
 #include "../../auth/Auth.hpp"
 #include <chrono>
 #include <unistd.h>
@@ -101,7 +101,7 @@ static void replaceAllAttempts(std::string& str) {
 
 static void replaceAllLayout(std::string& str) {
 
-    const auto LAYOUTIDX  = g_pHyprlock->m_uiActiveLayout;
+    const auto LAYOUTIDX  = g_pMpvlock->m_uiActiveLayout;
     const auto LAYOUTNAME = g_pSeatManager->getActiveKbLayoutName();
     size_t     pos        = 0;
 

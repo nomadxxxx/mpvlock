@@ -1,12 +1,12 @@
 #include "config/ConfigManager.hpp"
-#include "core/hyprlock.hpp"
+#include "core/mpvlock.hpp"
 #include "helpers/Log.hpp"
 #include "core/AnimationManager.hpp"
 #include <cstddef>
 #include <string_view>
 
 void help() {
-    std::println("Usage: hyprlock [options]\n\n"
+    std::println("Usage: mpvlock [options]\n\n"
                  "Options:\n"
                  "  -v, --verbose            - Enable verbose logging\n"
                  "  -q, --quiet              - Disable logging\n"
@@ -29,11 +29,11 @@ std::optional<std::string> parseArg(const std::vector<std::string>& args, const 
 }
 
 static void printVersion() {
-    constexpr bool ISTAGGEDRELEASE = std::string_view(HYPRLOCK_COMMIT) == HYPRLOCK_VERSION_COMMIT;
+    constexpr bool ISTAGGEDRELEASE = std::string_view(MPVLOCK_COMMIT) == MPVLOCK_VERSION_COMMIT;
     if (ISTAGGEDRELEASE)
-        std::println("Hyprlock version v{}", HYPRLOCK_VERSION);
+        std::println("mpvlock version v{}", MPVLOCK_VERSION);
     else
-        std::println("Hyprlock version v{} (commit {})", HYPRLOCK_VERSION, HYPRLOCK_COMMIT);
+        std::println("mpvlock version v{} (commit {})", MPVLOCK_VERSION, MPVLOCK_COMMIT);
 }
 
 int main(int argc, char** argv, char** envp) {
@@ -94,7 +94,7 @@ int main(int argc, char** argv, char** envp) {
 
     try {
         printVersion();
-        g_pAnimationManager = makeUnique<CHyprlockAnimationManager>();
+        g_pAnimationManager = makeUnique<CMpvlockAnimationManager>();
 
         try {
             g_pConfigManager = makeUnique<CConfigManager>(configPath);
@@ -111,10 +111,10 @@ int main(int argc, char** argv, char** envp) {
             g_pConfigManager->m_AnimationTree.setConfigForNode("fadeIn", false, 0.f, "default");
 
         try {
-            g_pHyprlock = makeUnique<CHyprlock>(wlDisplay, immediate, immediateRender);
-            g_pHyprlock->run();
+            g_pMpvlock = makeUnique<CMpvlock>(wlDisplay, immediate, immediateRender);
+            g_pMpvlock->run();
         } catch (const std::exception& ex) {
-            Debug::log(CRIT, "Hyprlock threw: {}", ex.what());
+            Debug::log(CRIT, "mpvlock threw: {}", ex.what());
             throw; // Re-throw to outer catch
         }
     } catch (const std::exception& e) {

@@ -1,5 +1,5 @@
 #include "Fingerprint.hpp"
-#include "../core/hyprlock.hpp"
+#include "../core/mpvlock.hpp"  // Updated from hyprlock.hpp
 #include "../helpers/Log.hpp"
 #include "../config/ConfigManager.hpp"
 
@@ -114,7 +114,7 @@ std::shared_ptr<sdbus::IConnection> CFingerprint::getConnection() {
 void CFingerprint::inhibitSleep() {
     m_sDBUSState.login->callMethodAsync("Inhibit")
         .onInterface(LOGIN_MANAGER)
-        .withArguments("sleep", "hyprlock", "Fingerprint verifcation must be stopped before sleep", "delay")
+        .withArguments("sleep", "mpvlock", "Fingerprint verification must be stopped before sleep", "delay")  // Updated from hyprlock
         .uponReplyInvoke([this](std::optional<sdbus::Error> e, sdbus::UnixFd fd) {
             if (e)
                 Debug::log(WARN, "fprint: could not inhibit sleep: {}", e->what());
@@ -151,7 +151,7 @@ bool CFingerprint::createDeviceProxy() {
                 if (!isPresent)
                     return;
                 m_sPrompt = m_sFingerprintPresent;
-                g_pHyprlock->enqueueForceUpdateTimers();
+                g_pMpvlock->enqueueForceUpdateTimers();  // Updated from g_pHyprlock
             } catch (std::out_of_range& e) {}
         });
 
@@ -174,7 +174,7 @@ void CFingerprint::handleVerifyStatus(const std::string& result, bool done) {
             } else {
                 done                         = false;
                 static const auto RETRYDELAY = g_pConfigManager->getValue<Hyprlang::INT>("auth:fingerprint:retry_delay");
-                g_pHyprlock->addTimer(std::chrono::milliseconds(*RETRYDELAY), [](std::shared_ptr<CTimer> self, void* data) { ((CFingerprint*)data)->startVerify(true); }, this);
+                g_pMpvlock->addTimer(std::chrono::milliseconds(*RETRYDELAY), [](std::shared_ptr<CTimer> self, void* data) { ((CFingerprint*)data)->startVerify(true); }, this);  // Updated from g_pHyprlock
                 m_sFailureReason = "Fingerprint did not match";
             }
             break;
@@ -251,7 +251,7 @@ void CFingerprint::startVerify(bool isRetry) {
             } else
                 m_sPrompt = m_sFingerprintReady;
         }
-        g_pHyprlock->enqueueForceUpdateTimers();
+        g_pMpvlock->enqueueForceUpdateTimers();  // Updated from g_pHyprlock
     });
 }
 

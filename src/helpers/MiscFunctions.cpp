@@ -109,7 +109,7 @@ int createPoolFile(size_t size, std::string& name) {
         return -1;
     }
 
-    name = std::string(XDGRUNTIMEDIR) + "/.hyprlock_sc_XXXXXX";
+    name = std::string(XDGRUNTIMEDIR) + "/.mpvlock_sc_XXXXXX";
 
     const auto FD = mkstemp((char*)name.c_str());
     if (FD < 0) {

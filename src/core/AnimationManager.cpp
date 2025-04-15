@@ -3,7 +3,7 @@
 #include "../config/ConfigDataValues.hpp"
 #include "../config/ConfigManager.hpp"
 
-CHyprlockAnimationManager::CHyprlockAnimationManager() {
+CMpvlockAnimationManager::CMpvlockAnimationManager() {  // Updated from CHyprlockAnimationManager
     addBezierWithName("linear", {0, 0}, {1, 1});
 }
 
@@ -76,7 +76,7 @@ void updateGradientVariable(CAnimatedVariable<CGradientValueData>& av, const flo
     av.value().updateColorsOk();
 }
 
-void CHyprlockAnimationManager::tick() {
+void CMpvlockAnimationManager::tick() {  // Updated from CHyprlockAnimationManager
     static const auto ANIMATIONSENABLED = g_pConfigManager->getValue<Hyprlang::INT>("animations:enabled");
     for (size_t i = 0; i < m_vActiveAnimatedVariables.size(); i++) {
         const auto PAV = m_vActiveAnimatedVariables[i].lock();
@@ -118,10 +118,10 @@ void CHyprlockAnimationManager::tick() {
     tickDone();
 }
 
-void CHyprlockAnimationManager::scheduleTick() {
+void CMpvlockAnimationManager::scheduleTick() {  // Updated from CHyprlockAnimationManager
     m_bTickScheduled = true;
 }
 
-void CHyprlockAnimationManager::onTicked() {
+void CMpvlockAnimationManager::onTicked() {  // Updated from CHyprlockAnimationManager
     m_bTickScheduled = false;
 }

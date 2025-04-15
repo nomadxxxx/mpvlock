@@ -19,6 +19,9 @@ class CShape : public IWidget {
     virtual void configure(const std::unordered_map<std::string, std::any>& prop, const SP<COutput>& pOutput) override;
     virtual bool draw(const SRenderData& data) override;
     virtual std::string type() const override; // Added for layered rendering
+    virtual void setZindex(int zindex) override;
+    virtual int getZindex() const override;
+    virtual void onTimer(std::shared_ptr<CTimer> timer, void* data) override;
 
   private:
     WP<CShape> m_self;
@@ -44,4 +47,18 @@ class CShape : public IWidget {
     std::string halign, valign;
     Vector2D viewport;
     CShadowable shadow;
+
+    // Fading functionality
+    struct {
+        float opacity = 1.0f;
+        bool enabled = false;
+        bool fadingIn = true;
+        uint64_t durationMs = 1000;
+        std::shared_ptr<CTimer> fadeTimer = nullptr;
+        std::chrono::system_clock::time_point startTime;
+    } fade;
+
+    std::string outputPort; // Added for renderOutput
+
+    void startFade();
 };

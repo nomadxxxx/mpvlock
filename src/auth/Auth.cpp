@@ -2,7 +2,7 @@
 #include "Pam.hpp"
 #include "Fingerprint.hpp"
 #include "../config/ConfigManager.hpp"
-#include "../core/hyprlock.hpp"
+#include "../core/mpvlock.hpp"  // Updated from hyprlock.hpp
 #include "src/helpers/Log.hpp"
 
 #include <hyprlang.hpp>
@@ -30,7 +30,7 @@ void CAuth::submitInput(const std::string& input) {
         i->handleInput(input);
     }
 
-    g_pHyprlock->clearPasswordBuffer();
+    g_pMpvlock->clearPasswordBuffer();  // Updated from g_pHyprlock
 }
 
 bool CAuth::checkWaiting() {
@@ -77,25 +77,25 @@ void CAuth::terminate() {
 }
 
 static void passwordUnlockCallback(std::shared_ptr<CTimer> self, void* data) {
-    g_pHyprlock->unlock();
+    g_pMpvlock->unlock();  // Updated from g_pHyprlock
 }
 
 void CAuth::enqueueUnlock() {
-    g_pHyprlock->addTimer(std::chrono::milliseconds(0), passwordUnlockCallback, nullptr);
+    g_pMpvlock->addTimer(std::chrono::milliseconds(0), passwordUnlockCallback, nullptr);  // Updated from g_pHyprlock
 }
 
 static void passwordFailCallback(std::shared_ptr<CTimer> self, void* data) {
     g_pAuth->m_bDisplayFailText = true;
 
-    g_pHyprlock->enqueueForceUpdateTimers();
+    g_pMpvlock->enqueueForceUpdateTimers();  // Updated from g_pHyprlock
 
-    g_pHyprlock->renderAllOutputs();
+    g_pMpvlock->renderAllOutputs();  // Updated from g_pHyprlock
 }
 
 static void displayFailTimeoutCallback(std::shared_ptr<CTimer> self, void* data) {
     if (g_pAuth->m_bDisplayFailText) {
         g_pAuth->m_bDisplayFailText = false;
-        g_pHyprlock->renderAllOutputs();
+        g_pMpvlock->renderAllOutputs();  // Updated from g_pHyprlock
     }
 }
 
@@ -113,8 +113,8 @@ void CAuth::enqueueFail(const std::string& failText, eAuthImplementations implTy
         m_resetDisplayFailTimer.reset();
     }
 
-    g_pHyprlock->addTimer(std::chrono::milliseconds(0), passwordFailCallback, nullptr);
-    m_resetDisplayFailTimer = g_pHyprlock->addTimer(std::chrono::milliseconds(*FAILTIMEOUT), displayFailTimeoutCallback, nullptr);
+    g_pMpvlock->addTimer(std::chrono::milliseconds(0), passwordFailCallback, nullptr);  // Updated from g_pHyprlock
+    m_resetDisplayFailTimer = g_pMpvlock->addTimer(std::chrono::milliseconds(*FAILTIMEOUT), displayFailTimeoutCallback, nullptr);  // Updated from g_pHyprlock
 }
 
 void CAuth::resetDisplayFail() {

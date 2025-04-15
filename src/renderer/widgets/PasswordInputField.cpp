@@ -1,6 +1,6 @@
 #include "PasswordInputField.hpp"
 #include "../Renderer.hpp"
-#include "../../core/hyprlock.hpp"
+#include "../../core/mpvlock.hpp"
 #include "../../auth/Auth.hpp"
 #include "../../config/ConfigDataValues.hpp"
 #include "../../config/ConfigManager.hpp"
@@ -33,6 +33,13 @@ void CPasswordInputField::setZindex(int zindex) {
 
 int CPasswordInputField::getZindex() const {
     return m_iZindex;
+}
+
+void CPasswordInputField::onTimer(std::shared_ptr<CTimer> timer, void* data) {
+    WP<CPasswordInputField> ref = *static_cast<WP<CPasswordInputField>*>(data);
+    if (auto PINPUTFIELD = ref.lock(); PINPUTFIELD) {
+        PINPUTFIELD->onFadeOutTimer();
+    }
 }
 
 void CPasswordInputField::configure(const std::unordered_map<std::string, std::any>& props, const SP<COutput>& pOutput) {
@@ -73,7 +80,6 @@ void CPasswordInputField::configure(const std::unordered_map<std::string, std::a
         colorConfig.swapFont     = std::any_cast<Hyprlang::INT>(props.at("swap_font_color"));
         colorConfig.hiddenBase   = std::any_cast<Hyprlang::INT>(props.at("hide_input_base_color"));
 
-        // Parse zindex if provided
         if (props.contains("zindex")) {
             try {
                 m_iZindex = std::any_cast<Hyprlang::INT>(props.at("zindex"));
@@ -83,7 +89,7 @@ void CPasswordInputField::configure(const std::unordered_map<std::string, std::a
                 m_iZindex = 30;
             }
         } else {
-            m_iZindex = 30; // Default from Renderer.cpp
+            m_iZindex = 30;
         }
     } catch (const std::bad_any_cast& e) {
         RASSERT(false, "Failed to construct CPasswordInputField: {}", e.what());
@@ -119,11 +125,9 @@ void CPasswordInputField::configure(const std::unordered_map<std::string, std::a
         request.props["font_family"] = fontFamily;
         request.props["color"]       = colorConfig.font;
         request.props["font_size"]   = (int)(std::nearbyint(configSize.y * dots.size * 0.5f) * 2.f);
-
         g_pRenderer->asyncResourceGatherer->requestAsyncAssetPreload(request);
     }
 
-    // request the initial placeholder asset
     updatePlaceholder();
 }
 
@@ -133,7 +137,7 @@ void CPasswordInputField::reset() {
         fade.fadeOutTimer.reset();
     }
 
-    if (g_pHyprlock->m_bTerminate)
+    if (g_pMpvlock->m_bTerminate)
         return;
 
     if (placeholder.asset)
@@ -142,61 +146,15 @@ void CPasswordInputField::reset() {
     placeholder.asset = nullptr;
     placeholder.resourceID.clear();
     placeholder.currentText.clear();
-}
-
-static void fadeOutCallback(WP<CPasswordInputField> ref) {
-    if (const auto PP = ref.lock(); PP)
-        PP->onFadeOutTimer();
-}
-
-void CPasswordInputField::onFadeOutTimer() {
-    fade.allowFadeOut = true;
-    fade.fadeOutTimer.reset();
-
-    g_pHyprlock->renderOutput(outputStringPort);
-}
-
-void CPasswordInputField::updateFade() {
-    if (!fadeOnEmpty) {
-        fade.a->setValueAndWarp(1.0);
-        return;
-    }
-
-    const bool INPUTUSED = passwordLength > 0 || checkWaiting;
-
-    if (INPUTUSED && fade.allowFadeOut)
-        fade.allowFadeOut = false;
-
-    if (INPUTUSED && fade.fadeOutTimer.get()) {
-        fade.fadeOutTimer->cancel();
-        fade.fadeOutTimer.reset();
-    }
-
-    if (!INPUTUSED && fade.a->goal() != 0.0) {
-        if (fade.allowFadeOut || fadeTimeoutMs == 0) {
-            *fade.a           = 0.0;
-            fade.allowFadeOut = false;
-        } else if (!fade.fadeOutTimer.get())
-            fade.fadeOutTimer = g_pHyprlock->addTimer(std::chrono::milliseconds(fadeTimeoutMs), [REF = m_self](auto, auto) { fadeOutCallback(REF); }, nullptr);
-
-    } else if (INPUTUSED && fade.a->goal() != 1.0)
-        *fade.a = 1.0;
-
-    if (fade.a->isBeingAnimated())
-        redrawShadow = true;
-}
-
-void CPasswordInputField::updateDots() {
-    if (dots.currentAmount->goal() == passwordLength)
-        return;
-
-    if (checkWaiting)
-        return;
-
-    if (passwordLength == 0)
-        dots.currentAmount->setValueAndWarp(passwordLength);
-    else
-        *dots.currentAmount = passwordLength;
+    placeholder.registeredResourceIDs.clear();
+    dots.textAsset = nullptr;
+    dots.textResourceID.clear();
+    firstRender = true;
+    redrawShadow = false;
+    checkWaiting = false;
+    displayFail = false;
+    m_bDisplayFailText = false;
+    passwordLength = 0;
 }
 
 bool CPasswordInputField::draw(const SRenderData& data) {
@@ -208,9 +166,9 @@ bool CPasswordInputField::draw(const SRenderData& data) {
 
     bool forceReload = false;
 
-    passwordLength = g_pHyprlock->getPasswordBufferDisplayLen();
+    passwordLength = g_pMpvlock->getPasswordBufferDisplayLen();
     checkWaiting   = g_pAuth->checkWaiting();
-    displayFail    = g_pAuth->m_bDisplayFailText;
+    displayFail    = m_bDisplayFailText && !configFailText.empty();
 
     updateFade();
     updateDots();
@@ -219,8 +177,8 @@ bool CPasswordInputField::draw(const SRenderData& data) {
     updateWidth();
     updateHiddenInputState();
 
-    CBox        inputFieldBox = {pos, size->value()};
-    CBox        outerBox      = {pos - Vector2D{outThick, outThick}, size->value() + Vector2D{outThick * 2, outThick * 2}};
+    CBox inputFieldBox = {pos, size->value()};
+    CBox outerBox      = {pos - Vector2D{outThick, outThick}, size->value() + Vector2D{outThick * 2, outThick * 2}};
 
     SRenderData shadowData = data;
     shadowData.opacity *= fade.a->value();
@@ -238,8 +196,8 @@ bool CPasswordInputField::draw(const SRenderData& data) {
         g_pRenderer->renderBorder(outerBox, colorState.outer->value(), outThick, OUTERROUND, fade.a->value() * data.opacity);
 
         if (passwordLength != 0 && !checkWaiting && hiddenInputState.enabled) {
-            CBox     outerBoxScaled = outerBox;
-            Vector2D p              = outerBox.pos();
+            CBox outerBoxScaled = outerBox;
+            Vector2D p          = outerBox.pos();
             outerBoxScaled.translate(-p).scale(0.5).translate(p);
             if (hiddenInputState.lastQuadrant > 1)
                 outerBoxScaled.y += outerBoxScaled.h;
@@ -258,8 +216,8 @@ bool CPasswordInputField::draw(const SRenderData& data) {
 
     if (!hiddenInputState.enabled) {
         const int RECTPASSSIZE = std::nearbyint(inputFieldBox.h * dots.size * 0.5f) * 2.f;
-        Vector2D  passSize{RECTPASSSIZE, RECTPASSSIZE};
-        int       passSpacing = std::floor(passSize.x * dots.spacing);
+        Vector2D passSize{RECTPASSSIZE, RECTPASSSIZE};
+        int passSpacing = std::floor(passSize.x * dots.spacing);
 
         if (!dots.textFormat.empty()) {
             if (!dots.textAsset)
@@ -273,17 +231,15 @@ bool CPasswordInputField::draw(const SRenderData& data) {
             }
         }
 
-        const auto   CURRDOTS     = dots.currentAmount->value();
-        const double DOTPAD       = (inputFieldBox.h - passSize.y) / 2.0;
+        const auto CURRDOTS     = dots.currentAmount->value();
+        const double DOTPAD     = (inputFieldBox.h - passSize.y) / 2.0;
         const double DOTAREAWIDTH = inputFieldBox.w - (DOTPAD * 2);
-        const int    MAXDOTS      = std::round(DOTAREAWIDTH * 1.0 / (passSize.x + passSpacing));
-        const int    DOTFLOORED   = std::floor(CURRDOTS);
-        const auto   DOTALPHA     = fontCol.a;
+        const int MAXDOTS       = std::round(DOTAREAWIDTH * 1.0 / (passSize.x + passSpacing));
+        const int DOTFLOORED    = std::floor(CURRDOTS);
+        const auto DOTALPHA     = fontCol.a;
 
-        // Calculate the total width required for all dots including spaces between them
         const double CURRWIDTH = ((passSize.x + passSpacing) * CURRDOTS) - passSpacing;
 
-        // Calculate starting x-position to ensure dots stay centered within the input field
         double xstart = dots.center ? ((DOTAREAWIDTH - CURRWIDTH) / 2.0) + DOTPAD : DOTPAD;
 
         if (CURRDOTS > MAXDOTS)
@@ -306,7 +262,7 @@ bool CPasswordInputField::draw(const SRenderData& data) {
             }
 
             Vector2D dotPosition = inputFieldBox.pos() + Vector2D{xstart + (i * (passSize.x + passSpacing)), (inputFieldBox.h / 2.0) - (passSize.y / 2.0)};
-            CBox     box{dotPosition, passSize};
+            CBox box{dotPosition, passSize};
             if (!dots.textFormat.empty()) {
                 if (!dots.textAsset) {
                     forceReload = true;
@@ -332,9 +288,8 @@ bool CPasswordInputField::draw(const SRenderData& data) {
 
         if (currAsset) {
             const Vector2D ASSETPOS = inputFieldBox.pos() + inputFieldBox.size() / 2.0 - currAsset->texture.m_vSize / 2.0;
-            const CBox     ASSETBOX{ASSETPOS, currAsset->texture.m_vSize};
+            const CBox ASSETBOX{ASSETPOS, currAsset->texture.m_vSize};
 
-            // Cut the texture to the width of the input field
             glEnable(GL_SCISSOR_TEST);
             glScissor(inputFieldBox.x, inputFieldBox.y, inputFieldBox.w, inputFieldBox.h);
             g_pRenderer->renderTexture(ASSETBOX, currAsset->texture, data.opacity * fade.a->value(), 0);
@@ -349,25 +304,23 @@ bool CPasswordInputField::draw(const SRenderData& data) {
 
 void CPasswordInputField::updatePlaceholder() {
     if (passwordLength != 0) {
-        if (placeholder.asset && /* keep prompt asset cause it is likely to be used again */ displayFail) {
+        if (placeholder.asset && displayFail) {
             std::erase(placeholder.registeredResourceIDs, placeholder.resourceID);
             g_pRenderer->asyncResourceGatherer->unloadAsset(placeholder.asset);
-            placeholder.asset      = nullptr;
+            placeholder.asset     = nullptr;
             placeholder.resourceID = "";
-            redrawShadow           = true;
+            redrawShadow          = true;
         }
         return;
     }
 
-    // already requested a placeholder for the current fail
     if (displayFail && placeholder.failedAttempts == g_pAuth->getFailedAttempts())
         return;
 
     placeholder.failedAttempts = g_pAuth->getFailedAttempts();
 
-    std::string newText = (displayFail) ? formatString(configFailText).formatted : formatString(configPlaceholderText).formatted;
+    std::string newText = (displayFail && !configFailText.empty()) ? formatString(configFailText).formatted : formatString(configPlaceholderText).formatted;
 
-    // if the text is unchanged we don't need to do anything, unless we are swapping font color
     const auto ALLOWCOLORSWAP = outThick == 0 && colorConfig.swapFont;
     if (!ALLOWCOLORSWAP && newText == placeholder.currentText)
         return;
@@ -389,7 +342,6 @@ void CPasswordInputField::updatePlaceholder() {
     Debug::log(TRACE, "Requesting new placeholder asset: {}", placeholder.resourceID);
     placeholder.registeredResourceIDs.push_back(placeholder.resourceID);
 
-    // query
     CAsyncResourceGatherer::SPreloadRequest request;
     request.id                   = placeholder.resourceID;
     request.asset                = placeholder.currentText;
@@ -399,7 +351,7 @@ void CPasswordInputField::updatePlaceholder() {
     request.props["font_size"]   = (int)size->value().y / 4;
     request.callback             = [REF = m_self] {
         if (const auto SELF = REF.lock(); SELF)
-            g_pHyprlock->renderOutput(SELF->outputStringPort);
+            g_pMpvlock->renderOutput(SELF->outputStringPort);
     };
     g_pRenderer->asyncResourceGatherer->requestAsyncAssetPreload(request);
 }
@@ -430,18 +382,14 @@ void CPasswordInputField::updateHiddenInputState() {
     if (!hiddenInputState.enabled || (size_t)hiddenInputState.lastPasswordLength == passwordLength)
         return;
 
-    // randomize new thang
     hiddenInputState.lastPasswordLength = passwordLength;
 
     const auto BASEOK = colorConfig.hiddenBase.asOkLab();
 
-    // convert to polar coordinates
     const auto OKICHCHROMA = std::sqrt(std::pow(BASEOK.a, 2) + std::pow(BASEOK.b, 2));
 
-    // now randomly rotate the hue
     const double OKICHHUE = (rand() % 10000000 / 10000000.0) * M_PI * 4;
 
-    // convert back to OkLab
     const Hyprgraphics::CColor newColor = Hyprgraphics::CColor::SOkLab{
         .l = BASEOK.l,
         .a = OKICHCHROMA * std::cos(OKICHHUE),
@@ -453,14 +401,14 @@ void CPasswordInputField::updateHiddenInputState() {
 }
 
 void CPasswordInputField::updateColors() {
-    const bool          BORDERLESS = outThick == 0;
-    const bool          NUMLOCK    = (colorConfig.invertNum) ? !g_pHyprlock->m_bNumLock : g_pHyprlock->m_bNumLock;
+    const bool BORDERLESS = outThick == 0;
+    const bool NUMLOCK    = (colorConfig.invertNum) ? !g_pMpvlock->m_bNumLock : g_pMpvlock->m_bNumLock;
 
     CGradientValueData* targetGrad = nullptr;
 
-    if (g_pHyprlock->m_bCapsLock && NUMLOCK && !colorConfig.both->m_bIsFallback)
+    if (g_pMpvlock->m_bCapsLock && NUMLOCK && !colorConfig.both->m_bIsFallback)
         targetGrad = colorConfig.both;
-    else if (g_pHyprlock->m_bCapsLock)
+    else if (g_pMpvlock->m_bCapsLock)
         targetGrad = colorConfig.caps;
     else if (NUMLOCK && !colorConfig.num->m_bIsFallback)
         targetGrad = colorConfig.num;
@@ -471,15 +419,14 @@ void CPasswordInputField::updateColors() {
         targetGrad = colorConfig.fail;
 
     CGradientValueData* outerTarget = colorConfig.outer;
-    CHyprColor          innerTarget = colorConfig.inner;
-    CHyprColor          fontTarget  = (displayFail) ? colorConfig.fail->m_vColors.front() : colorConfig.font;
+    CHyprColor innerTarget          = colorConfig.inner;
+    CHyprColor fontTarget           = (displayFail) ? colorConfig.fail->m_vColors.front() : colorConfig.font;
 
     if (targetGrad) {
         if (BORDERLESS && colorConfig.swapFont) {
             fontTarget = targetGrad->m_vColors.front();
         } else if (BORDERLESS && !colorConfig.swapFont) {
             innerTarget = targetGrad->m_vColors.front();
-            // When changing the inner color, the font cannot be fail_color
             fontTarget = colorConfig.font;
         } else if (targetGrad) {
             outerTarget = targetGrad;
@@ -493,4 +440,69 @@ void CPasswordInputField::updateColors() {
         *colorState.inner = innerTarget;
 
     colorState.font = fontTarget;
+}
+
+void CPasswordInputField::updateDots() {
+    size_t newLength = g_pMpvlock->getPasswordBufferDisplayLen();
+    if (newLength == dots.currentAmount->goal() && !checkWaiting)
+        return;
+
+    if (checkWaiting)
+        return;
+
+    passwordLength = newLength;
+    if (passwordLength == 0)
+        dots.currentAmount->setValueAndWarp(passwordLength);
+    else
+        *dots.currentAmount = passwordLength;
+}
+
+void CPasswordInputField::updateFade() {
+    if (!fadeOnEmpty) {
+        fade.a->setValueAndWarp(1.0);
+        return;
+    }
+
+    const bool INPUTUSED = passwordLength > 0 || checkWaiting || m_bDisplayFailText;
+
+    if (INPUTUSED && fade.allowFadeOut)
+        fade.allowFadeOut = false;
+
+    if (INPUTUSED && fade.fadeOutTimer.get()) {
+        fade.fadeOutTimer->cancel();
+        fade.fadeOutTimer.reset();
+    }
+
+    if (m_bDisplayFailText && !checkWaiting && !fade.fadeOutTimer.get()) {
+        fade.fadeOutTimer = g_pMpvlock->addTimer(std::chrono::milliseconds(fadeTimeoutMs),
+                                                 [REF = m_self](std::shared_ptr<CTimer> timer, void*) { REF.lock()->onTimer(timer, (void*)&REF); }, nullptr);
+        fade.allowFadeOut = true;
+    } else if (!INPUTUSED && fade.a->goal() != 0.0) {
+        if (fade.allowFadeOut || fadeTimeoutMs == 0) {
+            *fade.a           = 0.0;
+            fade.allowFadeOut = false;
+        } else if (!fade.fadeOutTimer.get()) {
+            fade.fadeOutTimer = g_pMpvlock->addTimer(std::chrono::milliseconds(fadeTimeoutMs),
+                                                     [REF = m_self](std::shared_ptr<CTimer> timer, void*) { REF.lock()->onTimer(timer, (void*)&REF); }, nullptr);
+        }
+    } else if (INPUTUSED && fade.a->goal() != 1.0) {
+        *fade.a = 1.0;
+    }
+
+    if (fade.a->isBeingAnimated())
+        redrawShadow = true;
+}
+
+void CPasswordInputField::onFadeOutTimer() {
+    if (!fade.fadeOutTimer || fade.fadeOutTimer->cancelled())
+        return;
+
+    m_bDisplayFailText = false;
+    fade.allowFadeOut  = false;
+    *fade.a            = 1.0;
+
+    Debug::log(TRACE, "PasswordInputField: Fade out complete, clearing failure text");
+    g_pMpvlock->renderOutput(outputStringPort);
+
+    fade.fadeOutTimer.reset();
 }
