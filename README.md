@@ -1,60 +1,47 @@
-# hyprlock
-Hyprland's simple, yet multi-threaded and GPU-accelerated screen locking utility.
+# mpvlock
 
-## Features
- - uses the secure ext-session-lock protocol
- - full support for fractional-scale
- - fully GPU accelerated
- - multi-threaded resource acquisition for no hitches
+A simple, GPU-accelerated screen locking utility for Hyprland with video background support.
+Features
 
-## How it looks
+    Locks your screen with a customizable video background using mpv.
+    Designed for Wayland and Hyprland, with a focus on performance.
+    Integrates with hypridle for idle timeout locking.
 
-![](https://i.ibb.co/8Bd98BP/20240220-00h12m46s.png)
+Prerequisites
 
-## Docs / Configuration
-[See the wiki](https://wiki.hyprland.org/Hypr-Ecosystem/hyprlock/)
+Before installing mpvlock, ensure you have the following dependencies:
 
-## Arch install
-```sh
-pacman -S hyprlock # binary x86 tagged release
-# or
-yay -S hyprlock-git # compiles from latest source
+    Hyprland (Wayland compositor)
+    mpv (for video playback)
+    mpvpaper (for video backgrounds)
+    hypridle (optional, for idle timeout integration)
+
+You can install these dependencies with:
+```s
+sudo pacman -S hyprland mpv mpvpaper hypridle
+Installation via AUR
+```
+mpvlock is available via AUR:
+```
+yay -S mpvlock-git
 ```
 
-## Building
-
-### Deps
-You need the following dependencies
-- wayland-client
-- wayland-protocols
-- mesa
-- hyprwayland-scanner
-
-And the development libraries for the following
-- cairo
-- libdrm
-- pango
-- xkbcommon
-- pam
-- hyprlang
-- hyprutils
-- hyprgraphics
-- libmagic (file-devel on Fedora)
-
-Development libraries are usually suffixed with `-devel` or `-dev` in most distro repos.
-
-You also need to install `mesa-libgbm-devel` on some distros like RPM based ones where its not
-bundled with the mesa package.
-
-### Building
-
-Building:
-```sh
-cmake --no-warn-unused-cli -DCMAKE_BUILD_TYPE:STRING=Release -S . -B ./build
-cmake --build ./build --config Release --target hyprlock -j`nproc 2>/dev/null || getconf _NPROCESSORS_CONF`
+Alternatively, you can manually clone and build the package:
+```
+git clone https://aur.archlinux.org/mpvlock-git.git
+cd mpvlock-git
+makepkg -si
 ```
 
-Installation:
-```sh
-sudo cmake --install build
-```
+## Configuration
+
+mpvlock installs default configuration files to ~/.config/mpvlock/. You can customize the video background and other settings by editing ~/.config/mpvlock/mpvlock.conf
+
+Contributing
+
+Contributions are welcome! Please submit issues or pull requests to the upstream repository (if available).
+License
+
+mpvlock is licensed under the BSD License. See the LICENSE file for details.
+
+You can copy this text directly into a README.md file in your project directory, for example, by using a text editor or a command like echo or cat on the command line. Let me know if you need help saving it to a file or making any adjustments!
