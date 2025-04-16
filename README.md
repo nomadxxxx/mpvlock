@@ -2,6 +2,8 @@
 
 A comprehensive fork of hyprlock that provides video and audio support and additional themeing options such as vertical labels and shapes.
 
+![All Themes Preview](https://github.com/nomadxxxx/mpvlock-themes/blob/main/assets/solitude.png)
+
 ### Features:
 1. Locks your screen with a customizable video background using mpv.
 2. Designed for Wayland and Hyprland from hyprlock to provide more flexible theming options.
@@ -36,6 +38,22 @@ makepkg -si
 ### Configuration
 
 mpvlock installs default configuration files to ~/.config/mpvlock/. You can customize the video background and other settings by editing ~/.config/mpvlock/mpvlock.conf
+
+## Detailed Previews
+
+| **cat-pool** | **cherry-blossom** |
+|:--:|:--:|
+| <img src="https://github.com/nomadxxxx/mpvlock-themes/blob/main/assets/cat-pool.png" width="500"> | <img src="https://github.com/nomadxxxx/mpvlock-themes/blob/main/assets/cherry-blossom.png" width="500"> |
+
+| **elon** | **gothgirl** |
+|:--:|:--:|
+| <img src="https://github.com/nomadxxxx/mpvlock-themes/blob/main/assets/elon.png" width="500"> | <img src="https://github.com/nomadxxxx/mpvlock-themes/blob/main/assets/gothgirl.png" width="500"> |
+
+| **solitude** | **Neon Jinx** |
+|:--:|:--:|
+| <img src="https://github.com/nomadxxxx/mpvlock-themes/blob/main/assets/solitude.png" width="500"> | <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/neon_jinx.png" width="500"> |
+
+The themes are avaialble [here.](https://github.com/nomadxxxx/mpvlock-themes/tree/main) I will create an installer script soon, until then you need to manually move them into .config/mpvlock/themes. When you have selected the theme you want just replace your mpvlock.conf witht he one from your selected theme.
 
 ### Contributing
 
