@@ -1,13 +1,13 @@
 # mpvlock
 
-A simple, GPU-accelerated screen locking utility for Hyprland with video background support.
-Features
+A comprehensive fork of hyprlock that provides video and audio support and additional themeing options such as vertical labls, shapes and fades.
 
-    Locks your screen with a customizable video background using mpv.
-    Designed for Wayland and Hyprland, with a focus on performance.
-    Integrates with hypridle for idle timeout locking.
+### Features:
+1. Locks your screen with a customizable video background using mpv.
+2. Designed for Wayland and Hyprland from hyprlock.
+3. Integrates with hypridle for idle timeout locking.
 
-Prerequisites
+### Prerequisites
 
 Before installing mpvlock, ensure you have the following dependencies:
 
@@ -33,11 +33,11 @@ cd mpvlock-git
 makepkg -si
 ```
 
-## Configuration
+### Configuration
 
 mpvlock installs default configuration files to ~/.config/mpvlock/. You can customize the video background and other settings by editing ~/.config/mpvlock/mpvlock.conf
 
-Contributing
+### Contributing
 
 Contributions are welcome! Please submit issues or pull requests to the upstream repository (if available).
 License
