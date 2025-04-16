@@ -19,12 +19,14 @@ You can install these dependencies with:
 sudo pacman -S hyprland mpv mpvpaper hypridle
 ```
 ### Installation via AUR
-```
+
 mpvlock is available via AUR:
 ```
 yay -S mpvlock-git
 ```
+
 Alternatively, you can manually clone and build the package:
+
 ```
 git clone https://aur.archlinux.org/mpvlock-git.git
 cd mpvlock-git
