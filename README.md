@@ -39,6 +39,8 @@ makepkg -si
 
 mpvlock installs default configuration files to ~/.config/mpvlock/. You can customize the video background and other settings by editing ~/.config/mpvlock/mpvlock.conf
 
+Scripts are located in ~/.config/mpvlock/scripts and you will need to update your location in weather.sh to get the weather widget working.
+
 ## Detailed Previews
 
 | **cat-pool** | **cherry-blossom** |
