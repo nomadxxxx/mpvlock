@@ -15,9 +15,10 @@ Before installing mpvlock, ensure you have the following dependencies:
     hypridle (optional, for idle timeout integration)
 
 You can install these dependencies with:
-```s
+```
 sudo pacman -S hyprland mpv mpvpaper hypridle
-Installation via AUR
+```
+### Installation via AUR
 ```
 mpvlock is available via AUR:
 ```
