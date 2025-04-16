@@ -1,18 +1,16 @@
 # mpvlock
 
-A comprehensive fork of hyprlock that provides video and audio support and additional themeing options such as vertical labls, shapes and fades.
+A comprehensive fork of hyprlock that provides video and audio support and additional themeing options such as vertical labels and shapes.
 
 ### Features:
 1. Locks your screen with a customizable video background using mpv.
-2. Designed for Wayland and Hyprland from hyprlock.
+2. Designed for Wayland and Hyprland from hyprlock to provide more flexible theming options.
 3. Integrates with hypridle for idle timeout locking.
 
 ### Prerequisites
 
 Before installing mpvlock, ensure you have the following dependencies:
 
-    Hyprland (Wayland compositor)
-    mpv (for video playback)
     mpvpaper (for video backgrounds)
     hypridle (optional, for idle timeout integration)
 
