@@ -63,5 +63,3 @@ Contributions are welcome! Please submit issues or pull requests to the upstream
 License
 
 mpvlock is licensed under the BSD License. See the LICENSE file for details.
-
-You can copy this text directly into a README.md file in your project directory, for example, by using a text editor or a command like echo or cat on the command line. Let me know if you need help saving it to a file or making any adjustments!
