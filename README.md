@@ -2,7 +2,7 @@
 
 A comprehensive fork of hyprlock that provides video and audio support and additional themeing options such as vertical labels and shapes.
 
-![All Themes Preview](https://github.com/nomadxxxx/mpvlock-themes/blob/main/assets/solitude.png)
+![All Themes Preview](https://github.com/nomadxxxx/mpvlock-themes/blob/main/assets/previews.gif)
 
 ### Features:
 1. Locks your screen with a customizable video background using mpv.
@@ -37,7 +37,6 @@ git clone https://aur.archlinux.org/mpvlock-git.git
 cd mpvlock-git
 makepkg -si
 ```
-
 ### Configuration
 
 mpvlock installs default configuration files to ~/.config/mpvlock/. You can customize the video background and other settings by editing ~/.config/mpvlock/mpvlock.conf
