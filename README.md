@@ -16,10 +16,6 @@ Before installing mpvlock, ensure you have the following dependencies:
     mpvpaper (for video backgrounds)
     hypridle (optional, for idle timeout integration)
 
-You can install these dependencies with:
-```
-sudo pacman -S hyprland mpv mpvpaper hypridle
-```
 ### Installation via AUR
 
 mpvlock is available via AUR:
@@ -27,6 +23,19 @@ mpvlock is available via AUR:
 yay -S mpvlock-git
 ```
 
+### Installation via script (testing)
+
+1. **Clone the Repository** (optional for advanced users):
+   ```bash
+   git clone https://github.com/nomadxxxx/mpvlock-themes.git
+   cd mpvlock-themes
+   ```
+**Note I'm still developing this script and have only tested on arch although ubuntu and fedora are supported.
+2. **Run the Installer**:
+   ```bash
+   chmod +x mpvlock_theme_installer.sh
+   ./mpvlock_theme_installer.sh
+   ```
 Alternatively, you can manually clone and build the package:
 
 ```
@@ -55,7 +64,36 @@ Scripts are located in ~/.config/mpvlock/scripts and you will need to update you
 |:--:|:--:|
 | <img src="https://github.com/nomadxxxx/mpvlock-themes/blob/main/assets/solitude.png" width="500"> | <img src="https://github.com/nomadxxxx/mpvlock-themes/blob/main/assets/neon_jinx.png" width="500"> |
 
-The themes are avaialble [here.](https://github.com/nomadxxxx/mpvlock-themes/tree/main) I will create an installer script soon, until then you need to manually move them into .config/mpvlock/themes. When you have selected the theme you want just replace your mpvlock.conf witht he one from your selected theme.
+The themes are avaialble [here.](https://github.com/nomadxxxx/mpvlock-themes/tree/main). You can also install them using below:
+
+### Install theme
+
+Install a specific theme directly without cloning the repository:
+
+- **Install a specific theme** (e.g., `cherry-blossom`):
+  ```bash
+  curl -L https://raw.githubusercontent.com/nomadxxxx/mpvlock-themes/main/mpvlock_theme_installer.sh | bash -s - -t cherry-blossom
+  ```
+  Replace `cherry-blossom` with any available theme name (see below).
+### Installation (Manual Method)
+
+1. **Prerequisites**:
+   - `curl` must be installed on your system.
+   - Git, CMake, Ninja, and various development libraries will be installed automatically by the script if missing (hopfully).
+
+2. **Clone the Repository** (optional for advanced users):
+   ```bash
+   git clone https://github.com/nomadxxxx/mpvlock-themes.git
+   cd mpvlock-themes
+   ```
+
+3. **Run the Installer**:
+   ```bash
+   chmod +x mpvlock_theme_installer.sh
+   ./mpvlock_theme_installer.sh
+   ```
+   - Follow the on-screen menu to install mpvlock (option 1) or select a theme (options 2-7).
+   - Themes are installed to `~/.config/mpvlock/themes/`, and the configuration is updated accordingly.
 
 ### Contributing
 
