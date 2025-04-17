@@ -68,7 +68,7 @@ Install a specific theme directly without cloning the repository:
   ```bash
   curl -L https://raw.githubusercontent.com/nomadxxxx/mpvlock-themes/main/mpvlock_theme_installer.sh | bash -s - -t cherry-blossom
   ```
-  Replace `cherry-blossom` with any available theme name (see below).
+  Replace `cherry-blossom` with any available theme name (see above).
 ### Installation (Manual Method)
 
 1. **Prerequisites**:
