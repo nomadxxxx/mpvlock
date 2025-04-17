@@ -53,7 +53,7 @@ Scripts are located in ~/.config/mpvlock/scripts and you will need to update you
 
 | **solitude** | **Neon Jinx** |
 |:--:|:--:|
-| <img src="https://github.com/nomadxxxx/mpvlock-themes/blob/main/assets/solitude.png" width="500"> | <img src="https://github.com/nomadxxxx/hyprddm/raw/master/Previews/neon_jinx.png" width="500"> |
+| <img src="https://github.com/nomadxxxx/mpvlock-themes/blob/main/assets/solitude.png" width="500"> | <img src="https://github.com/nomadxxxx/mpvlock-themes/blob/main/assets/neon_jinx.png" width="500"> |
 
 The themes are avaialble [here.](https://github.com/nomadxxxx/mpvlock-themes/tree/main) I will create an installer script soon, until then you need to manually move them into .config/mpvlock/themes. When you have selected the theme you want just replace your mpvlock.conf witht he one from your selected theme.
 
