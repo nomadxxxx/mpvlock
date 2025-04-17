@@ -24,20 +24,14 @@ yay -S mpvlock-git
 ```
 
 ### Installation via script (testing)
-
-1. **Clone the Repository** (optional for advanced users):
-   ```bash
-   git clone https://github.com/nomadxxxx/mpvlock-themes.git
-   cd mpvlock-themes
-   ```
+```bash
+git clone https://github.com/nomadxxxx/mpvlock-themes.git
+cd mpvlock-themes
+chmod +x mpvlock_theme_installer.sh
+./mpvlock_theme_installer.sh
+```
 **Note I'm still developing this script and have only tested on arch although ubuntu and fedora are supported.
-2. **Run the Installer**:
-   ```bash
-   chmod +x mpvlock_theme_installer.sh
-   ./mpvlock_theme_installer.sh
-   ```
-Alternatively, you can manually clone and build the package:
-
+### Alternatively, you can manually clone and build the package:
 ```
 git clone https://aur.archlinux.org/mpvlock-git.git
 cd mpvlock-git
