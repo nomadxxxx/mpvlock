@@ -9,6 +9,13 @@ A comprehensive fork of hyprlock that provides video and audio support and addit
 2. Designed for Wayland and Hyprland from hyprlock to provide more flexible theming options.
 3. Integrates with hypridle for idle timeout locking.
 
+### In Development
+- [ ] On-click features for labels (incl font change on hover)
+- [ ] Dropdown boxes (to support theme switching / script selection)
+- [ ] Support for random theme or background on load
+- [ ] Progress bar for playerctl widgets and script 
+- [ ] Better handing of multi-monitor setups
+
 ### Prerequisites
 
 Before installing mpvlock, ensure you have the following dependencies:
@@ -41,7 +48,7 @@ makepkg -si
 
 mpvlock installs default configuration files to ~/.config/mpvlock/. You can customize the video background and other settings by editing ~/.config/mpvlock/mpvlock.conf
 
-Scripts are located in ~/.config/mpvlock/scripts and you will need to update your location in weather.sh to get the weather widget working.
+Scripts are located in ~/.config/mpvlock/scripts and you will need to update your location in weather.sh to get the weather widget working. To do this just go to [here](https://weather.com ), search your location then pull your location ID from the URL. 
 
 ## Detailed Previews
 
