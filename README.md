@@ -9,13 +9,6 @@ A comprehensive fork of hyprlock that provides video and audio support and addit
 2. Designed for Wayland and Hyprland from hyprlock to provide more flexible theming options.
 3. Integrates with hypridle for idle timeout locking.
 
-### In Development
-- [ ] On-click features for labels (incl font change on hover)
-- [ ] Dropdown boxes (to support theme switching / script selection)
-- [ ] Support for random theme or background on load
-- [ ] Progress bar for playerctl widgets and script 
-- [ ] Better handing of multi-monitor setups
-
 ### Prerequisites
 
 Before installing mpvlock, ensure you have the following dependencies:
@@ -95,9 +88,16 @@ Install a specific theme directly without cloning the repository:
    - Follow the on-screen menu to install mpvlock (option 1) or select a theme (options 2-7).
    - Themes are installed to `~/.config/mpvlock/themes/`, and the configuration is updated accordingly.
 
+### In development
+- [ ] On-click features for labels (incl font change on hover)
+- [ ] Dropdown boxes (to support theme switching / script selection)
+- [ ] Support for random theme or background on load
+- [ ] Progress bar for playerctl widgets and script 
+- [ ] Better handing of multi-monitor setups
+
 ### Contributing
 
-Contributions are welcome! Please submit issues or pull requests to the upstream repository (if available).
-License
+Contributions are welcome! Please submit any issues or pull requests. 
 
-mpvlock is licensed under the BSD License. See the LICENSE file for details.
+
+mpvlock is a hyprlock fork licensed under the BSD License. See the LICENSE file for details.
